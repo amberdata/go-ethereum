@@ -17,18 +17,26 @@
 package vm
 
 import (
+	"database/sql"
+
+	_ "github.com/lib/pq"
 	"math/big"
 	"sync/atomic"
-
+  "fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/core/state"
 )
 
 // emptyCodeHash is used by create to ensure deployment is disallowed to already
 // deployed contract addresses (relevant after the account abstraction).
 var emptyCodeHash = crypto.Keccak256Hash(nil)
-
+var connStr = "host=localhost port=5432 dbname=ethereum user=superuser password=superuser sslmode=disable"
+var internalTxTypeMap = map[string]int{
+    "c2c": 1,
+    "c2e": 2
+}
 type (
 	CanTransferFunc func(StateDB, common.Address, *big.Int) bool
 	TransferFunc    func(StateDB, common.Address, common.Address, *big.Int)
@@ -168,6 +176,14 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	contract.SetCallCode(&addr, evm.StateDB.GetCodeHash(addr), evm.StateDB.GetCode(addr))
 
 	ret, err = run(evm, snapshot, contract, input)
+
+	fmt.Printf("evm depth in call is %d\n", evm.depth)
+	fmt.Printf("len(evm.StateDB.GetCodeHash(caller.Address())) = %d\n", len(evm.StateDB.GetCodeHash(caller.Address())))
+	evm.checkInvariant(caller)
+	if (evm.depth > 0) {
+		evm.saveInternalTx(evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), addr, value, "CALL", evm.address2internalTxType(addr))
+	}
+
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in homestead this also counts for code storage gas errors.
@@ -335,6 +351,14 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 		return nil, contractAddr, gas, nil
 	}
 	ret, err = run(evm, snapshot, contract, nil)
+
+	fmt.Printf("evm depth in create is %d\n", evm.depth)
+	fmt.Printf("len(evm.StateDB.GetCodeHash(caller.Address())) = %d\n", len(evm.StateDB.GetCodeHash(caller.Address())))
+  evm.checkInvariant(caller)
+	if (evm.depth > 0) {
+		evm.saveInternalTx(evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), contractAddr, value, "CREATE", internalTxTypeMap["c2c"])
+	}
+
 	// check whether the max code size has been exceeded
 	maxCodeSizeExceeded := evm.ChainConfig().IsEIP158(evm.BlockNumber) && len(ret) > params.MaxCodeSize
 	// if the contract creation ran successfully and no errors were returned
@@ -371,3 +395,37 @@ func (evm *EVM) ChainConfig() *params.ChainConfig { return evm.chainConfig }
 
 // Interpreter returns the EVM interpreter
 func (evm *EVM) Interpreter() *Interpreter { return evm.interpreter }
+
+func (evm *EVM) saveInternalTx(thash common.Hash, src common.Address, dest common.Address, value *big.Int, opcode string, txType string) int64 {
+  fmt.Printf("thash = %+v\n", thash)
+	fmt.Printf("src = %+v\n", src)
+	fmt.Printf("dest = %+v\n", dest)
+	fmt.Printf("value = %+v\n", &value)
+	fmt.Printf("opcode = %s\n", opcode)
+	fmt.Printf("txType = %s\n", txType)
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		fmt.Printf(err)
+		return 0
+	}
+  _, err := db.Query("insert into internal_transaction (\"parentHash\", \"from\", \"to\", \"value\", \"opcode\", \"txType\") values ($1, $2, $3, $4::NUMERIC, $5)", thash.Hex(), src.Hex(), dest.Hex(), value.Text(10), opcode, txType)
+	if err != nil {
+		fmt.Printf(err)
+		return 0
+	}
+	return 1
+}
+
+func (evm *EVM) address2internalTxType(addr common.Address) int {
+	if len(evm.StateDB.GetCodeHash(addr)) > 0 {
+		return internalTxTypeMap["c2c"]
+	} else {
+		return internalTxTypeMap["c2e"]
+	}
+}
+
+func (evm *EVM) checkInvariant(caller ContractRef) {
+	if ((evm.depth == 0 && len(evm.StateDB.GetCodeHash(caller.Address())) > 0) || (evm.depth > 0 && len(evm.StateDB.GetCodeHash(caller.Address())) == 0)) {
+		panic(fmt.Sprintf("evm depth in create is %d, len(evm.StateDB.GetCodeHash(caller.Address())) = %d\n"), evm.depth, len(evm.StateDB.GetCodeHash(caller.Address())))
+	}
+}
