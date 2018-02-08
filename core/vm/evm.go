@@ -33,7 +33,7 @@ import (
 // emptyCodeHash is used by create to ensure deployment is disallowed to already
 // deployed contract addresses (relevant after the account abstraction).
 var emptyCodeHash = crypto.Keccak256Hash(nil)
-var connStr = "host=localhost port=5432 dbname=ethereum user=pwang password=>MwoYREUZIE%z@![ sslmode=disable"
+var connStr = "host=localhost port=5432 dbname=ethereum user=pengwang password=pengwang sslmode=disable"
 var internalTxTypeMap = map[string]int{
 	"c2c": 1,
 	"c2e": 2,
