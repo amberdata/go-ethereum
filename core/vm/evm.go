@@ -18,25 +18,27 @@ package vm
 
 import (
 	"database/sql"
-
-	_ "github.com/lib/pq"
+	"fmt"
 	"math/big"
+	"strings"
 	"sync/atomic"
-  "fmt"
+
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/core/state"
+	_ "github.com/lib/pq"
 )
 
 // emptyCodeHash is used by create to ensure deployment is disallowed to already
 // deployed contract addresses (relevant after the account abstraction).
 var emptyCodeHash = crypto.Keccak256Hash(nil)
-var connStr = "host=localhost port=5432 dbname=ethereum user=superuser password=superuser sslmode=disable"
+var connStr = "host=localhost port=5432 dbname=ethereum user=pwang password=>MwoYREUZIE%z@![ sslmode=disable"
 var internalTxTypeMap = map[string]int{
-    "c2c": 1,
-    "c2e": 2
+	"c2c": 1,
+	"c2e": 2,
 }
+
 type (
 	CanTransferFunc func(StateDB, common.Address, *big.Int) bool
 	TransferFunc    func(StateDB, common.Address, common.Address, *big.Int)
@@ -180,7 +182,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	fmt.Printf("evm depth in call is %d\n", evm.depth)
 	fmt.Printf("len(evm.StateDB.GetCodeHash(caller.Address())) = %d\n", len(evm.StateDB.GetCodeHash(caller.Address())))
 	evm.checkInvariant(caller)
-	if (evm.depth > 0) {
+	if evm.depth > 0 {
 		evm.saveInternalTx(evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), addr, value, "CALL", evm.address2internalTxType(addr))
 	}
 
@@ -354,8 +356,8 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 
 	fmt.Printf("evm depth in create is %d\n", evm.depth)
 	fmt.Printf("len(evm.StateDB.GetCodeHash(caller.Address())) = %d\n", len(evm.StateDB.GetCodeHash(caller.Address())))
-  evm.checkInvariant(caller)
-	if (evm.depth > 0) {
+	evm.checkInvariant(caller)
+	if evm.depth > 0 {
 		evm.saveInternalTx(evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), contractAddr, value, "CREATE", internalTxTypeMap["c2c"])
 	}
 
@@ -396,21 +398,21 @@ func (evm *EVM) ChainConfig() *params.ChainConfig { return evm.chainConfig }
 // Interpreter returns the EVM interpreter
 func (evm *EVM) Interpreter() *Interpreter { return evm.interpreter }
 
-func (evm *EVM) saveInternalTx(thash common.Hash, src common.Address, dest common.Address, value *big.Int, opcode string, txType string) int64 {
-  fmt.Printf("thash = %+v\n", thash)
-	fmt.Printf("src = %+v\n", src)
-	fmt.Printf("dest = %+v\n", dest)
-	fmt.Printf("value = %+v\n", &value)
+func (evm *EVM) saveInternalTx(thash common.Hash, src common.Address, dest common.Address, value *big.Int, opcode string, txType int) int64 {
+	fmt.Printf("thash = %s\n", thash.Hex())
+	fmt.Printf("src = %s\n", src.Hex())
+	fmt.Printf("dest = %s\n", dest.Hex())
+	fmt.Printf("value = %+v\n", value.Text(10))
 	fmt.Printf("opcode = %s\n", opcode)
-	fmt.Printf("txType = %s\n", txType)
+	fmt.Printf("txType = %d\n", txType)
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		fmt.Printf(err)
+		fmt.Println(err.Error())
 		return 0
 	}
-  _, err := db.Query("insert into internal_transaction (\"parentHash\", \"from\", \"to\", \"value\", \"opcode\", \"txType\") values ($1, $2, $3, $4::NUMERIC, $5)", thash.Hex(), src.Hex(), dest.Hex(), value.Text(10), opcode, txType)
-	if err != nil {
-		fmt.Printf(err)
+	_, err2 := db.Query("insert into internal_transaction (\"parentHash\", \"from\", \"to\", \"value\", \"opcode\", \"transactionTypeId\") values ($1, $2, $3, $4::NUMERIC, $5, $6)", strings.ToLower(thash.Hex()), strings.ToLower(src.Hex()), strings.ToLower(dest.Hex()), value.Text(10), opcode, txType)
+	if err2 != nil {
+		fmt.Println(err2.Error())
 		return 0
 	}
 	return 1
@@ -425,7 +427,7 @@ func (evm *EVM) address2internalTxType(addr common.Address) int {
 }
 
 func (evm *EVM) checkInvariant(caller ContractRef) {
-	if ((evm.depth == 0 && len(evm.StateDB.GetCodeHash(caller.Address())) > 0) || (evm.depth > 0 && len(evm.StateDB.GetCodeHash(caller.Address())) == 0)) {
-		panic(fmt.Sprintf("evm depth in create is %d, len(evm.StateDB.GetCodeHash(caller.Address())) = %d\n"), evm.depth, len(evm.StateDB.GetCodeHash(caller.Address())))
+	if evm.depth > 0 && len(evm.StateDB.GetCodeHash(caller.Address())) == 0 {
+		panic(fmt.Sprintf("evm depth in create is %d, len(evm.StateDB.GetCodeHash(caller.Address())) = %d\n", evm.depth, len(evm.StateDB.GetCodeHash(caller.Address()))))
 	}
 }
