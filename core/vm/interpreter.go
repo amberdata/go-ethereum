@@ -18,6 +18,7 @@ package vm
 
 import (
 	"fmt"
+	"math/big"
 	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -219,8 +220,14 @@ func (in *Interpreter) Run(snapshot int, contract *Contract, input []byte) (ret 
 			logged = true
 		}
 
-		dest := common.BigToAddress(stack.pop())
-		value := in.evm.StateDB.GetBalance(contract.Address())
+		var (
+			dest  common.Address
+			value *big.Int
+		)
+		if op == OpCode(byte(SELFDESTRUCT)) {
+			dest = common.BigToAddress(stack.pop())
+			value = in.evm.StateDB.GetBalance(contract.Address())
+		}
 
 		// execute the operation
 		res, err := operation.execute(&pc, in.evm, contract, mem, stack)

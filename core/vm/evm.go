@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"fmt"
 	"math/big"
+	"os"
 	"strings"
 	"sync/atomic"
 
@@ -34,7 +35,7 @@ import (
 // emptyCodeHash is used by create to ensure deployment is disallowed to already
 // deployed contract addresses (relevant after the account abstraction).
 var emptyCodeHash = crypto.Keccak256Hash(nil)
-var connStr = "host=localhost port=5432 dbname=ethereum user=pwang password=>MwoYREUZIE%z@![ sslmode=disable"
+var connStr = "host=localhost port=5432 dbname=ethereum user=" + os.Getenv("DATABASE_USERNAME") + " password=" + os.Getenv("DATABASE_PASSWORD") + " sslmode=disable"
 var postgres = connectPostgres(connStr)
 
 func connectPostgres(connStr string) *sql.DB {
@@ -416,6 +417,7 @@ func (evm *EVM) SaveInternalTx(thash common.Hash, src common.Address, dest commo
 	fmt.Printf("value = %+v\n", value.Text(10))
 	fmt.Printf("opcode = %s\n", opcode)
 	fmt.Printf("txType = %d\n", txType)
+	fmt.Printf("nonce = %d\n", nonce)
 	inputString := ""
 	if input != nil {
 		inputString = hexutil.Encode(input)
