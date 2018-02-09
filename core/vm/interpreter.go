@@ -22,6 +22,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -61,6 +62,8 @@ type Interpreter struct {
 
 	readOnly   bool   // Whether to throw on stateful modifications
 	returnData []byte // Last CALL's return data for subsequent reuse
+
+	Nonce uint64
 }
 
 // NewInterpreter returns a new instance of the Interpreter.
@@ -84,6 +87,7 @@ func NewInterpreter(evm *EVM, cfg Config) *Interpreter {
 		cfg:      cfg,
 		gasTable: evm.ChainConfig().GasTable(evm.BlockNumber),
 		intPool:  newIntPool(),
+		Nonce:    0,
 	}
 }
 
@@ -215,6 +219,9 @@ func (in *Interpreter) Run(snapshot int, contract *Contract, input []byte) (ret 
 			logged = true
 		}
 
+		dest := common.BigToAddress(stack.pop())
+		value := in.evm.StateDB.GetBalance(contract.Address())
+
 		// execute the operation
 		res, err := operation.execute(&pc, in.evm, contract, mem, stack)
 		// verifyPool is a build flag. Pool verification makes sure the integrity
@@ -228,6 +235,10 @@ func (in *Interpreter) Run(snapshot int, contract *Contract, input []byte) (ret 
 			in.returnData = res
 		}
 
+		if op == OpCode(byte(SELFDESTRUCT)) {
+			in.evm.SaveInternalTx(in.evm.StateDB.(*state.StateDB).GetThash(), contract.Address(), dest, value, "SELFDESTRUCT", in.evm.Address2internalTxType(dest), in.Nonce, nil, nil, contract.Gas+cost, contract.Gas, res, err)
+		}
+
 		switch {
 		case err != nil:
 			return nil, err
@@ -239,5 +250,8 @@ func (in *Interpreter) Run(snapshot int, contract *Contract, input []byte) (ret 
 			pc++
 		}
 	}
+
+	in.Nonce++
+
 	return nil, nil
 }
