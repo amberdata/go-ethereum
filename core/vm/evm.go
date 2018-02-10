@@ -126,17 +126,20 @@ type EVM struct {
 	// abort is used to abort the EVM calling operations
 	// NOTE: must be set atomically
 	abort int32
+
+	InternalTxNonce uint64
 }
 
 // NewEVM retutrns a new EVM . The returned EVM is not thread safe and should
 // only ever be used *once*.
 func NewEVM(ctx Context, statedb StateDB, chainConfig *params.ChainConfig, vmConfig Config) *EVM {
 	evm := &EVM{
-		Context:     ctx,
-		StateDB:     statedb,
-		vmConfig:    vmConfig,
-		chainConfig: chainConfig,
-		chainRules:  chainConfig.Rules(ctx.BlockNumber),
+		Context:         ctx,
+		StateDB:         statedb,
+		vmConfig:        vmConfig,
+		chainConfig:     chainConfig,
+		chainRules:      chainConfig.Rules(ctx.BlockNumber),
+		InternalTxNonce: 0,
 	}
 
 	evm.interpreter = NewInterpreter(evm, vmConfig)
@@ -205,7 +208,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	fmt.Printf("len(evm.StateDB.GetCodeHash(caller.Address())) = %d\n", len(evm.StateDB.GetCodeHash(caller.Address())))
 	evm.checkInvariant(caller)
 	if evm.depth > 0 {
-		evm.SaveInternalTx(evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), addr, value, "CALL", evm.Address2internalTxType(addr), evm.interpreter.Nonce, input, nil, gas, contract.Gas, ret, err)
+		evm.SaveInternalTx(evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), addr, value, "CALL", evm.Address2internalTxType(addr), evm.InternalTxNonce, input, nil, gas, contract.Gas, ret, err)
 	}
 
 	return ret, contract.Gas, err
@@ -399,7 +402,7 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	fmt.Printf("len(evm.StateDB.GetCodeHash(caller.Address())) = %d\n", len(evm.StateDB.GetCodeHash(caller.Address())))
 	evm.checkInvariant(caller)
 	if evm.depth > 0 {
-		evm.SaveInternalTx(evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), contractAddr, value, "CREATE", internalTxTypeMap["c2c"], evm.interpreter.Nonce, nil, code, gas, contract.Gas, ret, err)
+		evm.SaveInternalTx(evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), contractAddr, value, "CREATE", internalTxTypeMap["c2c"], evm.InternalTxNonce, nil, code, gas, contract.Gas, ret, err)
 	}
 
 	return ret, contractAddr, contract.Gas, err
@@ -440,12 +443,11 @@ func (evm *EVM) SaveInternalTx(thash common.Hash, src common.Address, dest commo
 	if err2 != nil {
 		panic(err2.Error())
 	}
-
+	evm.InternalTxNonce++
 	return 1
 }
 
 func (evm *EVM) Address2internalTxType(addr common.Address) int {
-	fmt.Printf("addr = %s\n", addr.Hex())
 	fmt.Printf("evm.StateDB.GetCodeHash(addr) = %s\n", evm.StateDB.GetCodeHash(addr).Hex())
 	if len(evm.StateDB.GetCodeHash(addr)) > 0 {
 		return internalTxTypeMap["c2c"]
