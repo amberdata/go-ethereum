@@ -225,7 +225,8 @@ func (in *Interpreter) Run(snapshot int, contract *Contract, input []byte) (ret 
 			value *big.Int
 		)
 		if op == OpCode(byte(SELFDESTRUCT)) {
-			dest = common.BigToAddress(stack.pop())
+			stackData := stack.Data()
+			dest = common.BigToAddress(stackData[len(stackData)-1])
 			value = in.evm.StateDB.GetBalance(contract.Address())
 		}
 
