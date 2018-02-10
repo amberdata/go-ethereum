@@ -445,6 +445,7 @@ func (evm *EVM) SaveInternalTx(thash common.Hash, src common.Address, dest commo
 }
 
 func (evm *EVM) Address2internalTxType(addr common.Address) int {
+	fmt.Printf("addr = %s\n", addr.Hex())
 	fmt.Printf("evm.StateDB.GetCodeHash(addr) = %s\n", evm.StateDB.GetCodeHash(addr).Hex())
 	if len(evm.StateDB.GetCodeHash(addr)) > 0 {
 		return internalTxTypeMap["c2c"]
