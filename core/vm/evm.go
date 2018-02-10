@@ -434,10 +434,12 @@ func (evm *EVM) SaveInternalTx(thash common.Hash, src common.Address, dest commo
 	if err != nil {
 		errorString = err.Error()
 	}
-	_, err2 := postgres.Query("INSERT INTO internal_transaction (\"parentHash\", \"from\", \"to\", \"value\", \"opcode\", \"transactionTypeId\", \"nonce\", \"input\", \"code\", \"initialGas\", \"leftOverGas\", \"ret\", \"error\") VALUES ($1, $2, $3, $4::NUMERIC, $5, $6, $7, $8, $9, $10, $11, $12, $13) ON CONFLICT DO NOTHING", strings.ToLower(thash.Hex()), strings.ToLower(src.Hex()), strings.ToLower(dest.Hex()), value.Text(10), opcode, txType, nonce, inputString, codeString, initialGas, leftOverGas, retString, errorString)
+	row, err2 := postgres.Query("INSERT INTO internal_transaction (\"parentHash\", \"from\", \"to\", \"value\", \"opcode\", \"transactionTypeId\", \"nonce\", \"input\", \"code\", \"initialGas\", \"leftOverGas\", \"ret\", \"error\") VALUES ($1, $2, $3, $4::NUMERIC, $5, $6, $7, $8, $9, $10, $11, $12, $13) ON CONFLICT DO NOTHING", strings.ToLower(thash.Hex()), strings.ToLower(src.Hex()), strings.ToLower(dest.Hex()), value.Text(10), opcode, txType, nonce, inputString, codeString, initialGas, leftOverGas, retString, errorString)
+	defer row.Close()
 	if err2 != nil {
 		panic(err2.Error())
 	}
+
 	return 1
 }
 
