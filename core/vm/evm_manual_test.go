@@ -19,7 +19,7 @@ func TestSaveInternalTx(t *testing.T) {
 	opcode := "CREATE"
 	txType := 1
 	newEVM := &EVM{}
-	newEVM.SaveInternalTx(thash, src, dest, value, opcode, txType, 1, nil, nil, 0, 0, nil, nil)
+	newEVM.SaveInternalTx(thash, src, dest, value, opcode, txType, 1, 1, nil, nil, 0, 0, nil, nil)
 	fmt.Println("please manually verify in database")
 }
 
@@ -35,6 +35,6 @@ func TestSaveInternalTx2(t *testing.T) {
 	code := hexutil.MustDecode("0x02")
 	ret := hexutil.MustDecode("0x03")
 	err := errors.New("err")
-	newEVM.SaveInternalTx(thash, src, dest, value, opcode, txType, 2, input, code, 0, 0, ret, err)
+	newEVM.SaveInternalTx(thash, src, dest, value, opcode, txType, 1, 2, input, code, 0, 0, ret, err)
 	fmt.Println("please manually verify in database")
 }

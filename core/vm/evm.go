@@ -36,20 +36,18 @@ import (
 // deployed contract addresses (relevant after the account abstraction).
 var emptyCodeHash = crypto.Keccak256Hash(nil)
 var connStr = "host=localhost port=5432 dbname=ethereum user=" + os.Getenv("DATABASE_USERNAME") + " password=" + os.Getenv("DATABASE_PASSWORD") + " sslmode=disable"
-var postgres = connectPostgres(connStr)
+var dbo = connectDB(connStr)
 
-func connectPostgres(connStr string) *sql.DB {
-	postgres, err := sql.Open("postgres", connStr)
-	if err != nil {
-		panic("postgres is not connected")
-	}
-	return postgres
+func connectDB(connStr string) *sql.DB {
+	dbo, err := sql.Open("postgres", connStr)
+	checkErr(err)
+	return dbo
 }
 
-var internalTxTypeMap = map[string]int{
-	"c2c": 1,
-	"c2e": 2,
-}
+// var internalTxTypeMap = map[string]int{
+// 	"c2c": 1,
+// 	"c2e": 2,
+// }
 
 type (
 	CanTransferFunc func(StateDB, common.Address, *big.Int) bool
@@ -208,7 +206,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	fmt.Printf("len(evm.StateDB.GetCodeHash(caller.Address())) = %d\n", len(evm.StateDB.GetCodeHash(caller.Address())))
 	evm.checkInvariant(caller)
 	if evm.depth > 0 {
-		evm.SaveInternalTx(evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), addr, value, "CALL", evm.Address2internalTxType(addr), evm.InternalTxNonce, input, nil, gas, contract.Gas, ret, err)
+		evm.SaveInternalTx(evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), addr, value, "CALL", 0, evm.depth, evm.InternalTxNonce, input, nil, gas, contract.Gas, ret, err)
 	}
 
 	return ret, contract.Gas, err
@@ -402,7 +400,7 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	fmt.Printf("len(evm.StateDB.GetCodeHash(caller.Address())) = %d\n", len(evm.StateDB.GetCodeHash(caller.Address())))
 	evm.checkInvariant(caller)
 	if evm.depth > 0 {
-		evm.SaveInternalTx(evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), contractAddr, value, "CREATE", internalTxTypeMap["c2c"], evm.InternalTxNonce, nil, code, gas, contract.Gas, ret, err)
+		evm.SaveInternalTx(evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), contractAddr, value, "CREATE", 0, evm.depth, evm.InternalTxNonce, nil, code, gas, contract.Gas, ret, err)
 	}
 
 	return ret, contractAddr, contract.Gas, err
@@ -414,7 +412,7 @@ func (evm *EVM) ChainConfig() *params.ChainConfig { return evm.chainConfig }
 // Interpreter returns the EVM interpreter
 func (evm *EVM) Interpreter() *Interpreter { return evm.interpreter }
 
-func (evm *EVM) SaveInternalTx(thash common.Hash, src common.Address, dest common.Address, value *big.Int, opcode string, txType int, nonce uint64, input []byte, code []byte, initialGas uint64, leftOverGas uint64, ret []byte, err error) int64 {
+func (evm *EVM) SaveInternalTx(thash common.Hash, src common.Address, dest common.Address, value *big.Int, opcode string, txType int, depth int, nonce uint64, input []byte, code []byte, initialGas uint64, leftOverGas uint64, ret []byte, err error) int64 {
 	fmt.Printf("thash = %s\n", thash.Hex())
 	fmt.Printf("src = %s\n", src.Hex())
 	fmt.Printf("dest = %s\n", dest.Hex())
@@ -438,26 +436,39 @@ func (evm *EVM) SaveInternalTx(thash common.Hash, src common.Address, dest commo
 	if err != nil {
 		errorString = err.Error()
 	}
-	row, err2 := postgres.Query("INSERT INTO internal_transaction (\"parentHash\", \"from\", \"to\", \"value\", \"opcode\", \"transactionTypeId\", \"nonce\", \"input\", \"code\", \"initialGas\", \"leftOverGas\", \"ret\", \"error\") VALUES ($1, $2, $3, $4::NUMERIC, $5, $6, $7, $8, $9, $10, $11, $12, $13) ON CONFLICT DO NOTHING", strings.ToLower(thash.Hex()), strings.ToLower(src.Hex()), strings.ToLower(dest.Hex()), value.Text(10), opcode, txType, nonce, inputString, codeString, initialGas, leftOverGas, retString, errorString)
-	defer row.Close()
-	if err2 != nil {
-		panic(err2.Error())
+	result, err2 := dbo.Exec("INSERT INTO internal_transaction (\"parentHash\", \"from\", \"to\", \"value\", \"opcode\", \"transactionTypeId\", \"depth\", \"nonce\", \"input\", \"code\", \"initialGas\", \"leftOverGas\", \"ret\", \"error\") VALUES ($1, $2, $3, $4::NUMERIC, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) ON CONFLICT DO NOTHING", strings.ToLower(thash.Hex()), strings.ToLower(src.Hex()), strings.ToLower(dest.Hex()), value.Text(10), opcode, txType, depth, nonce, inputString, codeString, initialGas, leftOverGas, retString, errorString)
+	checkErr(err2)
+	rowsAffected, err3 := result.RowsAffected()
+	checkErr(err3)
+	fmt.Printf("rowsAffected = %d\n", rowsAffected)
+	if rowsAffected == 0 {
+		fmt.Printf("warning: rowsAffected == 0, parentHash = %s, nonce = %d\n", thash.Hex(), nonce)
 	}
 	evm.InternalTxNonce++
 	return 1
 }
 
-func (evm *EVM) Address2internalTxType(addr common.Address) int {
-	fmt.Printf("evm.StateDB.GetCodeHash(addr) = %s\n", evm.StateDB.GetCodeHash(addr).Hex())
-	if len(evm.StateDB.GetCodeHash(addr)) > 0 {
-		return internalTxTypeMap["c2c"]
-	} else {
-		return internalTxTypeMap["c2e"]
-	}
-}
+// func (evm *EVM) Address2internalTxType(addr common.Address) int {
+// 	fmt.Printf("evm.StateDB.GetCodeHash(addr) = %s\n", evm.StateDB.GetCodeHash(addr).Hex())
+// 	if len(evm.StateDB.GetCodeHash(addr)) > 0 {
+// 		return internalTxTypeMap["c2c"]
+// 	} else {
+// 		return internalTxTypeMap["c2e"]
+// 	}
+// }
 
 func (evm *EVM) checkInvariant(caller ContractRef) {
 	if evm.depth > 0 && len(evm.StateDB.GetCodeHash(caller.Address())) == 0 {
 		panic(fmt.Sprintf("evm depth in create is %d, len(evm.StateDB.GetCodeHash(caller.Address())) = %d\n", evm.depth, len(evm.StateDB.GetCodeHash(caller.Address()))))
+	}
+}
+
+func (evm *EVM) GetDepth() int {
+	return evm.depth
+}
+
+func checkErr(err error) {
+	if err != nil {
+		panic(err)
 	}
 }
