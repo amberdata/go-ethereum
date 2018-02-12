@@ -206,7 +206,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	fmt.Printf("len(evm.StateDB.GetCodeHash(caller.Address())) = %d\n", len(evm.StateDB.GetCodeHash(caller.Address())))
 	evm.checkInvariant(caller)
 	if evm.depth > 0 {
-		evm.SaveInternalTx(evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), addr, value, "CALL", 0, evm.depth, evm.InternalTxNonce, input, nil, gas, contract.Gas, ret, err)
+		evm.SaveInternalTx(evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), to.Address(), value, "CALL", 0, evm.depth, evm.InternalTxNonce, input, nil, gas, contract.Gas, ret, err)
 	}
 
 	return ret, contract.Gas, err
@@ -250,6 +250,12 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 			contract.UseGas(contract.Gas)
 		}
 	}
+
+	evm.checkInvariant(caller)
+	if evm.depth > 0 {
+		evm.SaveInternalTx(evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), to.Address(), value, "CALLCODE", 0, evm.depth, evm.InternalTxNonce, input, nil, gas, contract.Gas, ret, err)
+	}
+
 	return ret, contract.Gas, err
 }
 
@@ -283,6 +289,12 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 			contract.UseGas(contract.Gas)
 		}
 	}
+
+	evm.checkInvariant(caller)
+	if evm.depth > 0 {
+		evm.SaveInternalTx(evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), to.Address(), nil, "DELEGATECALL", 0, evm.depth, evm.InternalTxNonce, input, nil, gas, contract.Gas, ret, err)
+	}
+
 	return ret, contract.Gas, err
 }
 
@@ -420,6 +432,10 @@ func (evm *EVM) SaveInternalTx(thash common.Hash, src common.Address, dest commo
 	fmt.Printf("opcode = %s\n", opcode)
 	fmt.Printf("txType = %d\n", txType)
 	fmt.Printf("nonce = %d\n", nonce)
+	valueNumber := "0"
+	if value != nil {
+		valueNumber = value.Text(10)
+	}
 	inputString := ""
 	if input != nil {
 		inputString = hexutil.Encode(input)
@@ -436,7 +452,7 @@ func (evm *EVM) SaveInternalTx(thash common.Hash, src common.Address, dest commo
 	if err != nil {
 		errorString = err.Error()
 	}
-	result, err2 := dbo.Exec("INSERT INTO internal_transaction (\"parentHash\", \"from\", \"to\", \"value\", \"opcode\", \"transactionTypeId\", \"depth\", \"nonce\", \"input\", \"code\", \"initialGas\", \"leftOverGas\", \"ret\", \"error\") VALUES ($1, $2, $3, $4::NUMERIC, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) ON CONFLICT DO NOTHING", strings.ToLower(thash.Hex()), strings.ToLower(src.Hex()), strings.ToLower(dest.Hex()), value.Text(10), opcode, txType, depth, nonce, inputString, codeString, initialGas, leftOverGas, retString, errorString)
+	result, err2 := dbo.Exec("INSERT INTO internal_transaction (\"parentHash\", \"from\", \"to\", \"value\", \"opcode\", \"transactionTypeId\", \"depth\", \"nonce\", \"input\", \"code\", \"initialGas\", \"leftOverGas\", \"ret\", \"error\") VALUES ($1, $2, $3, $4::NUMERIC, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) ON CONFLICT DO NOTHING", strings.ToLower(thash.Hex()), strings.ToLower(src.Hex()), strings.ToLower(dest.Hex()), valueNumber, opcode, txType, depth, nonce, inputString, codeString, initialGas, leftOverGas, retString, errorString)
 	checkErr(err2)
 	rowsAffected, err3 := result.RowsAffected()
 	checkErr(err3)
