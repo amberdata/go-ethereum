@@ -452,7 +452,7 @@ func (evm *EVM) SaveInternalTx(thash common.Hash, src common.Address, dest commo
 	if err != nil {
 		errorString = err.Error()
 	}
-	result, err2 := dbo.Exec("INSERT INTO internal_transaction (\"parentHash\", \"from\", \"to\", \"value\", \"opcode\", \"transactionTypeId\", \"depth\", \"nonce\", \"input\", \"code\", \"initialGas\", \"leftOverGas\", \"ret\", \"error\") VALUES ($1, $2, $3, $4::NUMERIC, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) ON CONFLICT DO NOTHING", strings.ToLower(thash.Hex()), strings.ToLower(src.Hex()), strings.ToLower(dest.Hex()), valueNumber, opcode, txType, depth, nonce, inputString, codeString, initialGas, leftOverGas, retString, errorString)
+	result, err2 := dbo.Exec("INSERT INTO internal_transaction (\"parentHash\", \"from\", \"to\", \"value\", \"opcode\", \"transactionTypeId\", \"depth\", \"nonce\", \"input\", \"code\", \"initialGas\", \"leftOverGas\", \"ret\", \"error\") VALUES ($1, $2, $3, $4::NUMERIC, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) ON CONFLICT (\"parentHash\", \"nonce\") DO NOTHING", strings.ToLower(thash.Hex()), strings.ToLower(src.Hex()), strings.ToLower(dest.Hex()), valueNumber, opcode, txType, depth, nonce, inputString, codeString, initialGas, leftOverGas, retString, errorString)
 	checkErr(err2)
 	rowsAffected, err3 := result.RowsAffected()
 	checkErr(err3)
