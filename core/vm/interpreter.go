@@ -241,7 +241,7 @@ func (in *Interpreter) Run(snapshot int, contract *Contract, input []byte) (ret 
 		}
 
 		if op == OpCode(byte(SELFDESTRUCT)) {
-			in.evm.SaveInternalTx(in.evm.BlockNumber, in.evm.Time, in.evm.StateDB.(*state.StateDB).GetThash(), contract.Address(), dest, value, "SELFDESTRUCT", 0, in.evm.GetDepth(), in.evm.InternalTxNonce, nil, nil, contract.Gas+cost, contract.Gas, res, err)
+			in.evm.SaveInternalTx(in.evm.StateDB.(*state.StateDB).GetThash(), contract.Address(), dest, value, "SELFDESTRUCT", 0, in.evm.GetDepth(), in.evm.InternalTxNonce, nil, nil, contract.Gas+cost, contract.Gas, res, err)
 		}
 
 		switch {
