@@ -462,7 +462,7 @@ func (evm *EVM) SaveInternalTx(blockNumber *big.Int, timestamp *big.Int, thash c
 	if rowsAffected == 0 {
 		fmt.Printf("warning: rowsAffected == 0, blockNumber = %d, transactionHash = %s, nonce = %d\n", blockNumber.Uint64(), strings.ToLower(thash.Hex()), nonce)
 	} else {
-		fmt.Printf("saved internal tx: blockNumber = %d, transactionHash = %s", blockNumber.Uint64(), strings.ToLower(thash.Hex()))
+		fmt.Printf("saved internal tx: blockNumber = %d, transactionHash = %s\n", blockNumber.Uint64(), strings.ToLower(thash.Hex()))
 	}
 	return 1
 }
