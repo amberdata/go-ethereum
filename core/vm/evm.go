@@ -190,9 +190,9 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	// only.
 	contract := NewContract(caller, to, value, gas)
 	contract.SetCallCode(&addr, evm.StateDB.GetCodeHash(addr), evm.StateDB.GetCode(addr))
-	fmt.Printf("before run: %d\n", contract.Gas)
+	// fmt.Printf("before run: %d\n", contract.Gas)
 	ret, err = run(evm, snapshot, contract, input)
-	fmt.Printf("after run: %d\n", contract.Gas)
+	// fmt.Printf("after run: %d\n", contract.Gas)
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in homestead this also counts for code storage gas errors.
@@ -203,8 +203,8 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		}
 	}
 
-	fmt.Printf("evm depth in call is %d\n", evm.depth)
-	fmt.Printf("len(evm.StateDB.GetCodeHash(caller.Address())) = %d\n", len(evm.StateDB.GetCodeHash(caller.Address())))
+	// fmt.Printf("evm depth in call is %d\n", evm.depth)
+	// fmt.Printf("len(evm.StateDB.GetCodeHash(caller.Address())) = %d\n", len(evm.StateDB.GetCodeHash(caller.Address())))
 	evm.checkInvariant(caller)
 	if evm.depth > 0 {
 		evm.SaveInternalTx(evm.BlockNumber, evm.Time, evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), to.Address(), value, "CALL", 0, evm.depth, evm.InternalTxNonce, input, nil, gas, contract.Gas, ret, err)
@@ -409,8 +409,8 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 		err = errMaxCodeSizeExceeded
 	}
 
-	fmt.Printf("evm depth in create is %d\n", evm.depth)
-	fmt.Printf("len(evm.StateDB.GetCodeHash(caller.Address())) = %d\n", len(evm.StateDB.GetCodeHash(caller.Address())))
+	// fmt.Printf("evm depth in create is %d\n", evm.depth)
+	// fmt.Printf("len(evm.StateDB.GetCodeHash(caller.Address())) = %d\n", len(evm.StateDB.GetCodeHash(caller.Address())))
 	evm.checkInvariant(caller)
 	if evm.depth > 0 {
 		evm.SaveInternalTx(evm.BlockNumber, evm.Time, evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), contractAddr, value, "CREATE", internalTxTypeMap["c2c"], evm.depth, evm.InternalTxNonce, nil, code, gas, contract.Gas, ret, err)
@@ -426,13 +426,13 @@ func (evm *EVM) ChainConfig() *params.ChainConfig { return evm.chainConfig }
 func (evm *EVM) Interpreter() *Interpreter { return evm.interpreter }
 
 func (evm *EVM) SaveInternalTx(blockNumber *big.Int, timestamp *big.Int, thash common.Hash, src common.Address, dest common.Address, value *big.Int, opcode string, txType int, depth int, nonce uint64, input []byte, code []byte, initialGas uint64, leftOverGas uint64, ret []byte, err error) int64 {
-	fmt.Printf("thash = %s\n", thash.Hex())
-	fmt.Printf("src = %s\n", src.Hex())
-	fmt.Printf("dest = %s\n", dest.Hex())
-	fmt.Printf("value = %+v\n", value.Text(10))
-	fmt.Printf("opcode = %s\n", opcode)
-	fmt.Printf("txType = %d\n", txType)
-	fmt.Printf("nonce = %d\n", nonce)
+	// fmt.Printf("thash = %s\n", thash.Hex())
+	// fmt.Printf("src = %s\n", src.Hex())
+	// fmt.Printf("dest = %s\n", dest.Hex())
+	// fmt.Printf("value = %+v\n", value.Text(10))
+	// fmt.Printf("opcode = %s\n", opcode)
+	// fmt.Printf("txType = %d\n", txType)
+	// fmt.Printf("nonce = %d\n", nonce)
 	valueNumber := "0"
 	if value != nil {
 		valueNumber = value.Text(10)
@@ -457,11 +457,13 @@ func (evm *EVM) SaveInternalTx(blockNumber *big.Int, timestamp *big.Int, thash c
 	checkErr(err2)
 	rowsAffected, err3 := result.RowsAffected()
 	checkErr(err3)
-	fmt.Printf("rowsAffected = %d\n", rowsAffected)
-	if rowsAffected == 0 {
-		fmt.Printf("warning: rowsAffected == 0, parentHash = %s, nonce = %d\n", thash.Hex(), nonce)
-	}
+	// fmt.Printf("rowsAffected = %d\n", rowsAffected)
 	evm.InternalTxNonce++
+	if rowsAffected == 0 {
+		fmt.Printf("warning: rowsAffected == 0, blockNumber = %d, transactionHash = %s, nonce = %d\n", blockNumber.Uint64(), strings.ToLower(thash.Hex()), nonce)
+	} else {
+		fmt.Printf("saved internal tx: blockNumber = %d, transactionHash = %s", blockNumber.Uint64(), strings.ToLower(thash.Hex()))
+	}
 	return 1
 }
 

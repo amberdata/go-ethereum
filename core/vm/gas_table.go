@@ -17,7 +17,6 @@
 package vm
 
 import (
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -358,7 +357,6 @@ func gasCall(gt params.GasTable, evm *EVM, contract *Contract, stack *Stack, mem
 	if gas, overflow = math.SafeAdd(gas, cg); overflow {
 		return 0, errGasUintOverflow
 	}
-	fmt.Printf("gas = %d\n", gas)
 	return gas, nil
 }
 
