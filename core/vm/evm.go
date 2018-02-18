@@ -23,6 +23,7 @@ import (
 	"os"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -44,10 +45,10 @@ func connectDB(connStr string) *sql.DB {
 	return dbo
 }
 
-// var internalTxTypeMap = map[string]int{
-// 	"c2c": 1,
-// 	"c2e": 2,
-// }
+var internalTxTypeMap = map[string]int{
+	"c2c": 1,
+	"c2e": 2,
+}
 
 type (
 	CanTransferFunc func(StateDB, common.Address, *big.Int) bool
@@ -206,7 +207,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	fmt.Printf("len(evm.StateDB.GetCodeHash(caller.Address())) = %d\n", len(evm.StateDB.GetCodeHash(caller.Address())))
 	evm.checkInvariant(caller)
 	if evm.depth > 0 {
-		evm.SaveInternalTx(evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), to.Address(), value, "CALL", 0, evm.depth, evm.InternalTxNonce, input, nil, gas, contract.Gas, ret, err)
+		evm.SaveInternalTx(evm.BlockNumber, evm.Time, evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), to.Address(), value, "CALL", 0, evm.depth, evm.InternalTxNonce, input, nil, gas, contract.Gas, ret, err)
 	}
 
 	return ret, contract.Gas, err
@@ -253,7 +254,7 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 
 	evm.checkInvariant(caller)
 	if evm.depth > 0 {
-		evm.SaveInternalTx(evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), to.Address(), value, "CALLCODE", 0, evm.depth, evm.InternalTxNonce, input, nil, gas, contract.Gas, ret, err)
+		evm.SaveInternalTx(evm.BlockNumber, evm.Time, evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), to.Address(), value, "CALLCODE", 0, evm.depth, evm.InternalTxNonce, input, nil, gas, contract.Gas, ret, err)
 	}
 
 	return ret, contract.Gas, err
@@ -292,7 +293,7 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 
 	evm.checkInvariant(caller)
 	if evm.depth > 0 {
-		evm.SaveInternalTx(evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), to.Address(), nil, "DELEGATECALL", 0, evm.depth, evm.InternalTxNonce, input, nil, gas, contract.Gas, ret, err)
+		evm.SaveInternalTx(evm.BlockNumber, evm.Time, evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), to.Address(), nil, "DELEGATECALL", 0, evm.depth, evm.InternalTxNonce, input, nil, gas, contract.Gas, ret, err)
 	}
 
 	return ret, contract.Gas, err
@@ -412,7 +413,7 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	fmt.Printf("len(evm.StateDB.GetCodeHash(caller.Address())) = %d\n", len(evm.StateDB.GetCodeHash(caller.Address())))
 	evm.checkInvariant(caller)
 	if evm.depth > 0 {
-		evm.SaveInternalTx(evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), contractAddr, value, "CREATE", 0, evm.depth, evm.InternalTxNonce, nil, code, gas, contract.Gas, ret, err)
+		evm.SaveInternalTx(evm.BlockNumber, evm.Time, evm.StateDB.(*state.StateDB).GetThash(), caller.Address(), contractAddr, value, "CREATE", internalTxTypeMap["c2c"], evm.depth, evm.InternalTxNonce, nil, code, gas, contract.Gas, ret, err)
 	}
 
 	return ret, contractAddr, contract.Gas, err
@@ -424,7 +425,7 @@ func (evm *EVM) ChainConfig() *params.ChainConfig { return evm.chainConfig }
 // Interpreter returns the EVM interpreter
 func (evm *EVM) Interpreter() *Interpreter { return evm.interpreter }
 
-func (evm *EVM) SaveInternalTx(thash common.Hash, src common.Address, dest common.Address, value *big.Int, opcode string, txType int, depth int, nonce uint64, input []byte, code []byte, initialGas uint64, leftOverGas uint64, ret []byte, err error) int64 {
+func (evm *EVM) SaveInternalTx(blockNumber *big.Int, timestamp *big.Int, thash common.Hash, src common.Address, dest common.Address, value *big.Int, opcode string, txType int, depth int, nonce uint64, input []byte, code []byte, initialGas uint64, leftOverGas uint64, ret []byte, err error) int64 {
 	fmt.Printf("thash = %s\n", thash.Hex())
 	fmt.Printf("src = %s\n", src.Hex())
 	fmt.Printf("dest = %s\n", dest.Hex())
@@ -452,7 +453,7 @@ func (evm *EVM) SaveInternalTx(thash common.Hash, src common.Address, dest commo
 	if err != nil {
 		errorString = err.Error()
 	}
-	result, err2 := dbo.Exec("INSERT INTO internal_transaction (\"parentHash\", \"from\", \"to\", \"value\", \"opcode\", \"transactionTypeId\", \"depth\", \"nonce\", \"input\", \"code\", \"initialGas\", \"leftOverGas\", \"ret\", \"error\") VALUES ($1, $2, $3, $4::NUMERIC, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) ON CONFLICT (\"parentHash\", \"nonce\") DO NOTHING", strings.ToLower(thash.Hex()), strings.ToLower(src.Hex()), strings.ToLower(dest.Hex()), valueNumber, opcode, txType, depth, nonce, inputString, codeString, initialGas, leftOverGas, retString, errorString)
+	result, err2 := dbo.Exec("INSERT INTO internal_transaction (\"blockNumber\", \"timestamp\", \"parentHash\", \"from\", \"to\", \"value\", \"opcode\", \"transactionTypeId\", \"depth\", \"nonce\", \"input\", \"code\", \"initialGas\", \"leftOverGas\", \"ret\", \"error\") VALUES ($1, $2, $3, $4, $5, $6::NUMERIC, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) ON CONFLICT (\"parentHash\", \"nonce\") DO NOTHING", blockNumber.Uint64(), time.Unix(timestamp.Int64(), 0).UTC(), strings.ToLower(thash.Hex()), strings.ToLower(src.Hex()), strings.ToLower(dest.Hex()), valueNumber, opcode, txType, depth, nonce, inputString, codeString, initialGas, leftOverGas, retString, errorString)
 	checkErr(err2)
 	rowsAffected, err3 := result.RowsAffected()
 	checkErr(err3)
