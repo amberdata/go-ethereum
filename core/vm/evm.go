@@ -17,16 +17,13 @@
 package vm
 
 import (
-	"database/sql"
 	"fmt"
 	"math/big"
-	"os"
-	"strings"
+
 	"sync/atomic"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
+
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
@@ -36,18 +33,28 @@ import (
 // emptyCodeHash is used by create to ensure deployment is disallowed to already
 // deployed contract addresses (relevant after the account abstraction).
 var emptyCodeHash = crypto.Keccak256Hash(nil)
-var connStr = "host=localhost port=5432 dbname=ethereum user=" + os.Getenv("DATABASE_USERNAME") + " password=" + os.Getenv("DATABASE_PASSWORD") + " sslmode=disable"
-var dbo = connectDB(connStr)
-
-func connectDB(connStr string) *sql.DB {
-	dbo, err := sql.Open("postgres", connStr)
-	checkErr(err)
-	return dbo
-}
-
 var internalTxTypeMap = map[string]int{
 	"c2c": 1,
 	"c2e": 2,
+}
+
+type InternalTx struct {
+	BlockNumber *big.Int
+	Timestamp   *big.Int
+	Thash       common.Hash
+	Src         common.Address
+	Dest        common.Address
+	Value       *big.Int
+	Opcode      string
+	TxType      int
+	Depth       int
+	Nonce       uint64
+	Input       []byte
+	Code        []byte
+	InitialGas  uint64
+	LeftOverGas uint64
+	Ret         []byte
+	Err         error
 }
 
 type (
@@ -127,6 +134,7 @@ type EVM struct {
 	abort int32
 
 	InternalTxNonce uint64
+	InternalTxStore []*InternalTx
 }
 
 // NewEVM retutrns a new EVM . The returned EVM is not thread safe and should
@@ -139,6 +147,7 @@ func NewEVM(ctx Context, statedb StateDB, chainConfig *params.ChainConfig, vmCon
 		chainConfig:     chainConfig,
 		chainRules:      chainConfig.Rules(ctx.BlockNumber),
 		InternalTxNonce: 0,
+		InternalTxStore: []*InternalTx{},
 	}
 
 	evm.interpreter = NewInterpreter(evm, vmConfig)
@@ -425,56 +434,28 @@ func (evm *EVM) ChainConfig() *params.ChainConfig { return evm.chainConfig }
 // Interpreter returns the EVM interpreter
 func (evm *EVM) Interpreter() *Interpreter { return evm.interpreter }
 
-func (evm *EVM) SaveInternalTx(blockNumber *big.Int, timestamp *big.Int, thash common.Hash, src common.Address, dest common.Address, value *big.Int, opcode string, txType int, depth int, nonce uint64, input []byte, code []byte, initialGas uint64, leftOverGas uint64, ret []byte, err error) int64 {
-	// fmt.Printf("thash = %s\n", thash.Hex())
-	// fmt.Printf("src = %s\n", src.Hex())
-	// fmt.Printf("dest = %s\n", dest.Hex())
-	// fmt.Printf("value = %+v\n", value.Text(10))
-	// fmt.Printf("opcode = %s\n", opcode)
-	// fmt.Printf("txType = %d\n", txType)
-	// fmt.Printf("nonce = %d\n", nonce)
-	valueNumber := "0"
-	if value != nil {
-		valueNumber = value.Text(10)
-	}
-	inputString := ""
-	if input != nil {
-		inputString = hexutil.Encode(input)
-	}
-	codeString := ""
-	if code != nil {
-		codeString = hexutil.Encode(code)
-	}
-	retString := ""
-	if ret != nil {
-		retString = hexutil.Encode(ret)
-	}
-	errorString := ""
-	if err != nil {
-		errorString = err.Error()
-	}
-	result, err2 := dbo.Exec("INSERT INTO internal_transaction (\"blockNumber\", \"timestamp\", \"transactionHash\", \"from\", \"to\", \"value\", \"opcode\", \"transactionTypeId\", \"depth\", \"nonce\", \"input\", \"code\", \"initialGas\", \"leftOverGas\", \"ret\", \"error\") VALUES ($1, $2, $3, $4, $5, $6::NUMERIC, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) ON CONFLICT (\"transactionHash\", \"nonce\") DO NOTHING", blockNumber.Uint64(), time.Unix(timestamp.Int64(), 0).UTC(), strings.ToLower(thash.Hex()), strings.ToLower(src.Hex()), strings.ToLower(dest.Hex()), valueNumber, opcode, txType, depth, nonce, inputString, codeString, initialGas, leftOverGas, retString, errorString)
-	checkErr(err2)
-	rowsAffected, err3 := result.RowsAffected()
-	checkErr(err3)
-	// fmt.Printf("rowsAffected = %d\n", rowsAffected)
+func (evm *EVM) SaveInternalTx(blockNumber *big.Int, timestamp *big.Int, thash common.Hash, src common.Address, dest common.Address, value *big.Int, opcode string, txType int, depth int, nonce uint64, input []byte, code []byte, initialGas uint64, leftOverGas uint64, ret []byte, err error) uint64 {
+	evm.InternalTxStore = append(evm.InternalTxStore, &InternalTx{
+		BlockNumber: blockNumber,
+		Timestamp:   timestamp,
+		Thash:       thash,
+		Src:         src,
+		Dest:        dest,
+		Value:       value,
+		Opcode:      opcode,
+		TxType:      txType,
+		Depth:       depth,
+		Nonce:       nonce,
+		Input:       input,
+		Code:        code,
+		InitialGas:  initialGas,
+		LeftOverGas: leftOverGas,
+		Ret:         ret,
+		Err:         err,
+	})
 	evm.InternalTxNonce++
-	if rowsAffected == 0 {
-		fmt.Printf("warning: rowsAffected == 0, blockNumber = %d, transactionHash = %s, nonce = %d\n", blockNumber.Uint64(), strings.ToLower(thash.Hex()), nonce)
-	} else {
-		fmt.Printf("saved internal tx: blockNumber = %d, transactionHash = %s\n", blockNumber.Uint64(), strings.ToLower(thash.Hex()))
-	}
 	return 1
 }
-
-// func (evm *EVM) Address2internalTxType(addr common.Address) int {
-// 	fmt.Printf("evm.StateDB.GetCodeHash(addr) = %s\n", evm.StateDB.GetCodeHash(addr).Hex())
-// 	if len(evm.StateDB.GetCodeHash(addr)) > 0 {
-// 		return internalTxTypeMap["c2c"]
-// 	} else {
-// 		return internalTxTypeMap["c2e"]
-// 	}
-// }
 
 func (evm *EVM) checkInvariant(caller ContractRef) {
 	if evm.depth > 0 && len(evm.StateDB.GetCodeHash(caller.Address())) == 0 {
@@ -484,10 +465,4 @@ func (evm *EVM) checkInvariant(caller ContractRef) {
 
 func (evm *EVM) GetDepth() int {
 	return evm.depth
-}
-
-func checkErr(err error) {
-	if err != nil {
-		panic(err)
-	}
 }
