@@ -19,10 +19,11 @@ package vm
 import (
 	"fmt"
 	"math/big"
-
+	"strings"
 	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -39,22 +40,22 @@ var internalTxTypeMap = map[string]int{
 }
 
 type InternalTx struct {
-	BlockNumber *big.Int
-	Timestamp   *big.Int
-	Thash       common.Hash
-	Src         common.Address
-	Dest        common.Address
-	Value       *big.Int
-	Opcode      string
-	TxType      int
-	Depth       int
-	Nonce       uint64
-	Input       []byte
-	Code        []byte
-	InitialGas  uint64
-	LeftOverGas uint64
-	Ret         []byte
-	Err         error
+	BlockNumberNumber uint64
+	TimestampSec      int64
+	ThashString       string
+	SrcString         string
+	DestString        string
+	ValueString       string
+	Opcode            string
+	TxType            int
+	Depth             int
+	Nonce             uint64
+	InputString       string
+	CodeString        string
+	InitialGas        uint64
+	LeftOverGas       uint64
+	RetString         string
+	ErrString         string
 }
 
 type (
@@ -435,23 +436,43 @@ func (evm *EVM) ChainConfig() *params.ChainConfig { return evm.chainConfig }
 func (evm *EVM) Interpreter() *Interpreter { return evm.interpreter }
 
 func (evm *EVM) SaveInternalTx(blockNumber *big.Int, timestamp *big.Int, thash common.Hash, src common.Address, dest common.Address, value *big.Int, opcode string, txType int, depth int, nonce uint64, input []byte, code []byte, initialGas uint64, leftOverGas uint64, ret []byte, err error) uint64 {
+	valueString := "0"
+	if value != nil {
+		valueString = value.Text(10)
+	}
+	inputString := ""
+	if input != nil {
+		inputString = hexutil.Encode(input)
+	}
+	codeString := ""
+	if code != nil {
+		codeString = hexutil.Encode(code)
+	}
+	retString := ""
+	if ret != nil {
+		retString = hexutil.Encode(ret)
+	}
+	errString := ""
+	if err != nil {
+		errString = err.Error()
+	}
 	evm.InternalTxStore = append(evm.InternalTxStore, &InternalTx{
-		BlockNumber: blockNumber,
-		Timestamp:   timestamp,
-		Thash:       thash,
-		Src:         src,
-		Dest:        dest,
-		Value:       value,
-		Opcode:      opcode,
-		TxType:      txType,
-		Depth:       depth,
-		Nonce:       nonce,
-		Input:       input,
-		Code:        code,
-		InitialGas:  initialGas,
-		LeftOverGas: leftOverGas,
-		Ret:         ret,
-		Err:         err,
+		BlockNumberNumber: blockNumber.Uint64(),
+		TimestampSec:      timestamp.Int64(),
+		ThashString:       strings.ToLower(thash.Hex()),
+		SrcString:         strings.ToLower(src.Hex()),
+		DestString:        strings.ToLower(dest.Hex()),
+		ValueString:       valueString,
+		Opcode:            opcode,
+		TxType:            txType,
+		Depth:             depth,
+		Nonce:             nonce,
+		InputString:       inputString,
+		CodeString:        codeString,
+		InitialGas:        initialGas,
+		LeftOverGas:       leftOverGas,
+		RetString:         retString,
+		ErrString:         errString,
 	})
 	evm.InternalTxNonce++
 	return 1

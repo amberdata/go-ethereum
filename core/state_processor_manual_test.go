@@ -1,6 +1,7 @@
 package core
 
 import (
+	"strings"
 	"testing"
 
 	"errors"
@@ -23,22 +24,22 @@ func TestSaveInternalTx(t *testing.T) {
 	txType := 1
 	saveInternalTxFromSingleTx(dbo, blockNumber, thash, []*vm.InternalTx{
 		&vm.InternalTx{
-			BlockNumber: blockNumber,
-			Timestamp:   timestamp,
-			Thash:       thash,
-			Src:         src,
-			Dest:        dest,
-			Value:       value,
-			Opcode:      opcode,
-			TxType:      txType,
-			Depth:       1,
-			Nonce:       1,
-			Input:       nil,
-			Code:        nil,
-			InitialGas:  0,
-			LeftOverGas: 0,
-			Ret:         nil,
-			Err:         nil,
+			BlockNumberNumber: blockNumber.Uint64(),
+			TimestampSec:      timestamp.Int64(),
+			ThashString:       strings.ToLower(thash.Hex()),
+			SrcString:         strings.ToLower(src.Hex()),
+			DestString:        strings.ToLower(dest.Hex()),
+			ValueString:       value.Text(10),
+			Opcode:            opcode,
+			TxType:            txType,
+			Depth:             1,
+			Nonce:             1,
+			InputString:       "",
+			CodeString:        "",
+			InitialGas:        0,
+			LeftOverGas:       0,
+			RetString:         "",
+			ErrString:         "",
 		},
 	})
 	fmt.Println("please manually verify in database")
@@ -59,22 +60,22 @@ func TestSaveInternalTx_AllFieldsNotNull(t *testing.T) {
 	err := errors.New("err")
 	saveInternalTxFromSingleTx(dbo, blockNumber, thash, []*vm.InternalTx{
 		&vm.InternalTx{
-			BlockNumber: blockNumber,
-			Timestamp:   timestamp,
-			Thash:       thash,
-			Src:         src,
-			Dest:        dest,
-			Value:       value,
-			Opcode:      opcode,
-			TxType:      txType,
-			Depth:       1,
-			Nonce:       2,
-			Input:       input,
-			Code:        code,
-			InitialGas:  0,
-			LeftOverGas: 0,
-			Ret:         ret,
-			Err:         err,
+			BlockNumberNumber: blockNumber.Uint64(),
+			TimestampSec:      timestamp.Int64(),
+			ThashString:       strings.ToLower(thash.Hex()),
+			SrcString:         strings.ToLower(src.Hex()),
+			DestString:        strings.ToLower(dest.Hex()),
+			ValueString:       value.Text(10),
+			Opcode:            opcode,
+			TxType:            txType,
+			Depth:             1,
+			Nonce:             2,
+			InputString:       hexutil.Encode(input),
+			CodeString:        hexutil.Encode(code),
+			InitialGas:        0,
+			LeftOverGas:       0,
+			RetString:         hexutil.Encode(ret),
+			ErrString:         err.Error(),
 		},
 	})
 	fmt.Println("please manually verify in database")

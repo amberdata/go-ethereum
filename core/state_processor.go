@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -163,27 +162,8 @@ func saveInternalTxFromSingleTx(dbo *sql.DB, blockNumber *big.Int, tHash common.
 	stmt, err2 := txn.Prepare(pq.CopyIn("internal_transaction", "blockNumber", "timestamp", "transactionHash", "from", "to", "value", "opcode", "transactionTypeId", "depth", "nonce", "input", "code", "initialGas", "leftOverGas", "ret", "error"))
 	common.CheckErr(err2, txn)
 	for _, internalTx := range internalTxStore {
-		valueNumber := "0"
-		if internalTx.Value != nil {
-			valueNumber = internalTx.Value.Text(10)
-		}
-		inputString := ""
-		if internalTx.Input != nil {
-			inputString = hexutil.Encode(internalTx.Input)
-		}
-		codeString := ""
-		if internalTx.Code != nil {
-			codeString = hexutil.Encode(internalTx.Code)
-		}
-		retString := ""
-		if internalTx.Ret != nil {
-			retString = hexutil.Encode(internalTx.Ret)
-		}
-		errorString := ""
-		if internalTx.Err != nil {
-			errorString = internalTx.Err.Error()
-		}
-		_, err := stmt.Exec(internalTx.BlockNumber.Uint64(), time.Unix(internalTx.Timestamp.Int64(), 0).UTC(), strings.ToLower(internalTx.Thash.Hex()), strings.ToLower(internalTx.Src.Hex()), strings.ToLower(internalTx.Dest.Hex()), valueNumber, internalTx.Opcode, internalTx.TxType, internalTx.Depth, internalTx.Nonce, inputString, codeString, internalTx.InitialGas, internalTx.LeftOverGas, retString, errorString)
+
+		_, err := stmt.Exec(internalTx.BlockNumberNumber, time.Unix(internalTx.TimestampSec, 0).UTC(), internalTx.ThashString, internalTx.SrcString, internalTx.DestString, internalTx.ValueString, internalTx.Opcode, internalTx.TxType, internalTx.Depth, internalTx.Nonce, internalTx.InputString, internalTx.CodeString, internalTx.InitialGas, internalTx.LeftOverGas, internalTx.RetString, internalTx.ErrString)
 		common.CheckErr(err, txn)
 	}
 	_, err3 := stmt.Exec()
@@ -201,28 +181,9 @@ func saveInternalTxFromSingleTx(dbo *sql.DB, blockNumber *big.Int, tHash common.
 func saveInternalTx(dbo *sql.DB, internalTxStore []*vm.InternalTx) uint64 {
 	totalRowsAffected := uint64(0)
 	for _, internalTx := range internalTxStore {
-		valueNumber := "0"
-		if internalTx.Value != nil {
-			valueNumber = internalTx.Value.Text(10)
-		}
-		inputString := ""
-		if internalTx.Input != nil {
-			inputString = hexutil.Encode(internalTx.Input)
-		}
-		codeString := ""
-		if internalTx.Code != nil {
-			codeString = hexutil.Encode(internalTx.Code)
-		}
-		retString := ""
-		if internalTx.Ret != nil {
-			retString = hexutil.Encode(internalTx.Ret)
-		}
-		errorString := ""
-		if internalTx.Err != nil {
-			errorString = internalTx.Err.Error()
-		}
+
 		result, err2 := dbo.Exec("INSERT INTO internal_transaction (\"blockNumber\", \"timestamp\", \"transactionHash\", \"from\", \"to\", \"value\", \"opcode\", \"transactionTypeId\", \"depth\", \"nonce\", \"input\", \"code\", \"initialGas\", \"leftOverGas\", \"ret\", \"error\") VALUES ($1, $2, $3, $4, $5, $6::NUMERIC, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) ON CONFLICT (\"transactionHash\", \"nonce\") DO UPDATE SET \"blockNumber\" = EXCLUDED.\"blockNumber\", \"timestamp\" = EXCLUDED.\"timestamp\"",
-			internalTx.BlockNumber.Uint64(), time.Unix(internalTx.Timestamp.Int64(), 0).UTC(), strings.ToLower(internalTx.Thash.Hex()), strings.ToLower(internalTx.Src.Hex()), strings.ToLower(internalTx.Dest.Hex()), valueNumber, internalTx.Opcode, internalTx.TxType, internalTx.Depth, internalTx.Nonce, inputString, codeString, internalTx.InitialGas, internalTx.LeftOverGas, retString, errorString)
+			internalTx.BlockNumberNumber, time.Unix(internalTx.TimestampSec, 0).UTC(), internalTx.ThashString, internalTx.SrcString, internalTx.DestString, internalTx.ValueString, internalTx.Opcode, internalTx.TxType, internalTx.Depth, internalTx.Nonce, internalTx.InputString, internalTx.CodeString, internalTx.InitialGas, internalTx.LeftOverGas, internalTx.RetString, internalTx.ErrString)
 		common.CheckErr(err2, nil)
 		rowAffected, err3 := result.RowsAffected()
 		common.CheckErr(err3, nil)
@@ -233,7 +194,7 @@ func saveInternalTx(dbo *sql.DB, internalTxStore []*vm.InternalTx) uint64 {
 		if rowAffected == 0 {
 			severity = "warning"
 		}
-		fmt.Printf("%s %s: rowAffected == %d, blockNumber = %d, transactionHash = %s, nonce = %d\n", timeNowString, severity, rowAffected, internalTx.BlockNumber.Uint64(), strings.ToLower(internalTx.Thash.Hex()), internalTx.Nonce)
+		fmt.Printf("%s %s: rowAffected == %d, blockNumber = %d, transactionHash = %s, nonce = %d\n", timeNowString, severity, rowAffected, internalTx.BlockNumberNumber, internalTx.ThashString, internalTx.Nonce)
 		// }
 		// else {
 		// 	fmt.Printf("%s saved internal tx: blockNumber = %d, transactionHash = %s, nonce = %d\n", timeNowString, blockNumber.Uint64(), strings.ToLower(internalTx.Thash.Hex()), nonce)
