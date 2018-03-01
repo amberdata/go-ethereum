@@ -57,7 +57,7 @@ func CheckErr(err error, tx *sql.Tx) {
 		if tx != nil {
 			tx.Rollback()
 		}
-		fmt.Printf("%s, %s", whereAmI(2), err.Error())
+		fmt.Printf("%s, %s\n", whereAmI(2), err.Error())
 		panic(err)
 	}
 }

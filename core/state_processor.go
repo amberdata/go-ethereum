@@ -82,6 +82,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	if p.config.DAOForkSupport && p.config.DAOForkBlock != nil && p.config.DAOForkBlock.Cmp(block.Number()) == 0 {
 		misc.ApplyDAOHardFork(statedb)
 	}
+	allInternalTxs := []*types.InternalTx{}
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
@@ -91,10 +92,11 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		}
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, receipt.Logs...)
+		allInternalTxs = append(allInternalTxs, receipt.InternalTxStore...)
 	}
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	p.engine.Finalize(p.bc, header, statedb, block.Transactions(), block.Uncles(), receipts)
-
+	saveInternalTxFromSingleBlock(dbo, block.Number(), allInternalTxs)
 	return receipts, allLogs, totalUsedGas, nil
 }
 
@@ -141,14 +143,15 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	receipt.Logs = statedb.GetLogs(tx.Hash())
 	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
 
-	saveInternalTxFromSingleTx(dbo, vmenv.BlockNumber, statedb.GetThash(), vmenv.InternalTxStore)
+	// saveInternalTxFromSingleTx(dbo, vmenv.BlockNumber, statedb.GetThash(), vmenv.InternalTxStore)
+	receipt.InternalTxStore = vmenv.InternalTxStore
 	return receipt, gas, err
 }
 
-func saveInternalTxFromSingleTx(dbo *sql.DB, blockNumber *big.Int, tHash common.Hash, internalTxStore []*vm.InternalTx) uint64 {
+func saveInternalTxFromSingleBlock(dbo *sql.DB, blockNumber *big.Int, internalTxStore []*types.InternalTx) uint64 {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("Recovered in ApplyTransaction: ", r)
+			fmt.Println("Recovered in saveInternalTxFromSingleBlock: ", r)
 			saveInternalTx(dbo, internalTxStore)
 		}
 	}()
@@ -162,7 +165,38 @@ func saveInternalTxFromSingleTx(dbo *sql.DB, blockNumber *big.Int, tHash common.
 	stmt, err2 := txn.Prepare(pq.CopyIn("internal_transaction", "blockNumber", "timestamp", "transactionHash", "from", "to", "value", "opcode", "transactionTypeId", "depth", "nonce", "input", "code", "initialGas", "leftOverGas", "ret", "error"))
 	common.CheckErr(err2, txn)
 	for _, internalTx := range internalTxStore {
+		_, err := stmt.Exec(internalTx.BlockNumberNumber, time.Unix(internalTx.TimestampSec, 0).UTC(), internalTx.ThashString, internalTx.SrcString, internalTx.DestString, internalTx.ValueString, internalTx.Opcode, internalTx.TxType, internalTx.Depth, internalTx.Nonce, internalTx.InputString, internalTx.CodeString, internalTx.InitialGas, internalTx.LeftOverGas, internalTx.RetString, internalTx.ErrString)
+		common.CheckErr(err, txn)
+	}
+	_, err3 := stmt.Exec()
+	common.CheckErr(err3, txn)
+	// err4 := stmt.Close()
+	// common.CheckErr(err4, txn)
+	err5 := txn.Commit()
+	common.CheckErr(err5, txn)
+	endTimestamp := time.Now().UTC()
+	elapsed := endTimestamp.Sub(startTimestamp)
+	fmt.Printf("%s: execution took %s, saved internal tx: blockNumber = %d\n", endTimestamp.Format("2006-01-02 15:04:05"), elapsed.Round(time.Millisecond).String(), blockNumber.Uint64())
+	return uint64(len(internalTxStore))
+}
 
+func saveInternalTxFromSingleTx(dbo *sql.DB, blockNumber *big.Int, tHash common.Hash, internalTxStore []*types.InternalTx) uint64 {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered in saveInternalTxFromSingleTx: ", r)
+			saveInternalTx(dbo, internalTxStore)
+		}
+	}()
+	if len(internalTxStore) == 0 {
+		return 0
+	}
+	fmt.Printf("len(internalTxStore) = %d\n", len(internalTxStore))
+	startTimestamp := time.Now().UTC()
+	txn, err1 := dbo.Begin()
+	common.CheckErr(err1, txn)
+	stmt, err2 := txn.Prepare(pq.CopyIn("internal_transaction", "blockNumber", "timestamp", "transactionHash", "from", "to", "value", "opcode", "transactionTypeId", "depth", "nonce", "input", "code", "initialGas", "leftOverGas", "ret", "error"))
+	common.CheckErr(err2, txn)
+	for _, internalTx := range internalTxStore {
 		_, err := stmt.Exec(internalTx.BlockNumberNumber, time.Unix(internalTx.TimestampSec, 0).UTC(), internalTx.ThashString, internalTx.SrcString, internalTx.DestString, internalTx.ValueString, internalTx.Opcode, internalTx.TxType, internalTx.Depth, internalTx.Nonce, internalTx.InputString, internalTx.CodeString, internalTx.InitialGas, internalTx.LeftOverGas, internalTx.RetString, internalTx.ErrString)
 		common.CheckErr(err, txn)
 	}
@@ -178,10 +212,9 @@ func saveInternalTxFromSingleTx(dbo *sql.DB, blockNumber *big.Int, tHash common.
 	return uint64(len(internalTxStore))
 }
 
-func saveInternalTx(dbo *sql.DB, internalTxStore []*vm.InternalTx) uint64 {
+func saveInternalTx(dbo *sql.DB, internalTxStore []*types.InternalTx) uint64 {
 	totalRowsAffected := uint64(0)
 	for _, internalTx := range internalTxStore {
-
 		result, err2 := dbo.Exec("INSERT INTO internal_transaction (\"blockNumber\", \"timestamp\", \"transactionHash\", \"from\", \"to\", \"value\", \"opcode\", \"transactionTypeId\", \"depth\", \"nonce\", \"input\", \"code\", \"initialGas\", \"leftOverGas\", \"ret\", \"error\") VALUES ($1, $2, $3, $4, $5, $6::NUMERIC, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) ON CONFLICT (\"transactionHash\", \"nonce\") DO UPDATE SET \"blockNumber\" = EXCLUDED.\"blockNumber\", \"timestamp\" = EXCLUDED.\"timestamp\"",
 			internalTx.BlockNumberNumber, time.Unix(internalTx.TimestampSec, 0).UTC(), internalTx.ThashString, internalTx.SrcString, internalTx.DestString, internalTx.ValueString, internalTx.Opcode, internalTx.TxType, internalTx.Depth, internalTx.Nonce, internalTx.InputString, internalTx.CodeString, internalTx.InitialGas, internalTx.LeftOverGas, internalTx.RetString, internalTx.ErrString)
 		common.CheckErr(err2, nil)

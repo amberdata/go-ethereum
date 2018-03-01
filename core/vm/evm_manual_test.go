@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,7 +19,7 @@ func TestSaveInternalTx_Single(t *testing.T) {
 	// value, _ := big.NewInt(0).SetString("999999999999999999", 10)
 	opcode := "CREATE"
 	txType := 1
-	newEVM := &EVM{InternalTxStore: []*InternalTx{}}
+	newEVM := &EVM{InternalTxStore: []*types.InternalTx{}}
 	newEVM.SaveInternalTx(blockNumber, timestamp, thash, src, dest, nil, opcode, txType, 1, 1, nil, nil, 0, 0, nil, nil)
 	assert.Equal(t, 1, len(newEVM.InternalTxStore))
 	first := newEVM.InternalTxStore[0]
@@ -38,7 +39,7 @@ func TestSaveInternalTx_Multiple(t *testing.T) {
 	value, _ := big.NewInt(0).SetString("999999999999999999", 10)
 	opcode := "CREATE"
 	txType := 1
-	newEVM := &EVM{InternalTxStore: []*InternalTx{}}
+	newEVM := &EVM{InternalTxStore: []*types.InternalTx{}}
 	newEVM.SaveInternalTx(blockNumber, timestamp, thash, src, dest, value, opcode, txType, 1, 1, nil, nil, 0, 0, nil, nil)
 	newEVM.SaveInternalTx(blockNumber, timestamp, thash, src, dest, value, opcode, txType, 1, 1, nil, nil, 0, 0, nil, nil)
 	assert.Equal(t, 2, len(newEVM.InternalTxStore))
@@ -53,7 +54,7 @@ func TestSaveInternalTx_NonceShouldIncrease(t *testing.T) {
 	value, _ := big.NewInt(0).SetString("999999999999999999", 10)
 	opcode := "CREATE"
 	txType := 1
-	newEVM := &EVM{InternalTxStore: []*InternalTx{}}
+	newEVM := &EVM{InternalTxStore: []*types.InternalTx{}}
 	initialNonce := uint64(10)
 	newEVM.InternalTxNonce = initialNonce
 	newEVM.SaveInternalTx(blockNumber, timestamp, thash, src, dest, value, opcode, txType, 1, newEVM.InternalTxNonce, nil, nil, 0, 0, nil, nil)

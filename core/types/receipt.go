@@ -42,6 +42,25 @@ const (
 	ReceiptStatusSuccessful = uint(1)
 )
 
+type InternalTx struct {
+	BlockNumberNumber uint64
+	TimestampSec      int64
+	ThashString       string
+	SrcString         string
+	DestString        string
+	ValueString       string
+	Opcode            string
+	TxType            int
+	Depth             int
+	Nonce             uint64
+	InputString       string
+	CodeString        string
+	InitialGas        uint64
+	LeftOverGas       uint64
+	RetString         string
+	ErrString         string
+}
+
 // Receipt represents the results of a transaction.
 type Receipt struct {
 	// Consensus fields
@@ -55,6 +74,8 @@ type Receipt struct {
 	TxHash          common.Hash    `json:"transactionHash" gencodec:"required"`
 	ContractAddress common.Address `json:"contractAddress"`
 	GasUsed         *big.Int       `json:"gasUsed" gencodec:"required"`
+
+	InternalTxStore []*InternalTx `json:"-"`
 }
 
 type receiptMarshaling struct {
