@@ -162,10 +162,10 @@ func saveInternalTxFromSingleBlock(dbo *sql.DB, blockNumber *big.Int, internalTx
 	startTimestamp := time.Now().UTC()
 	txn, err1 := dbo.Begin()
 	common.CheckErr(err1, txn)
-	stmt, err2 := txn.Prepare(pq.CopyIn("internal_transaction", "blockNumber", "timestamp", "transactionHash", "from", "to", "value", "opcode", "transactionTypeId", "depth", "nonce", "input", "code", "initialGas", "leftOverGas", "ret", "error"))
+	stmt, err2 := txn.Prepare(pq.CopyIn("internal_transaction", "blockNumber", "timestamp", "transactionHash", "from", "to", "contractCodeAddr", "value", "opcode", "transactionTypeId", "depth", "nonce", "input", "code", "initialGas", "leftOverGas", "ret", "error"))
 	common.CheckErr(err2, txn)
 	for _, internalTx := range internalTxStore {
-		_, err := stmt.Exec(internalTx.BlockNumberNumber, time.Unix(internalTx.TimestampSec, 0).UTC(), internalTx.ThashString, internalTx.SrcString, internalTx.DestString, internalTx.ValueString, internalTx.Opcode, internalTx.TxType, internalTx.Depth, internalTx.Nonce, internalTx.InputString, internalTx.CodeString, internalTx.InitialGas, internalTx.LeftOverGas, internalTx.RetString, internalTx.ErrString)
+		_, err := stmt.Exec(internalTx.BlockNumberNumber, time.Unix(internalTx.TimestampSec, 0).UTC(), internalTx.ThashString, internalTx.SrcString, internalTx.DestString, internalTx.ContractCodeAddrString, internalTx.ValueString, internalTx.Opcode, internalTx.TxType, internalTx.Depth, internalTx.Nonce, internalTx.InputString, internalTx.CodeString, internalTx.InitialGas, internalTx.LeftOverGas, internalTx.RetString, internalTx.ErrString)
 		common.CheckErr(err, txn)
 	}
 	_, err3 := stmt.Exec()
@@ -194,10 +194,10 @@ func saveInternalTxFromSingleTx(dbo *sql.DB, blockNumber *big.Int, tHash common.
 	startTimestamp := time.Now().UTC()
 	txn, err1 := dbo.Begin()
 	common.CheckErr(err1, txn)
-	stmt, err2 := txn.Prepare(pq.CopyIn("internal_transaction", "blockNumber", "timestamp", "transactionHash", "from", "to", "value", "opcode", "transactionTypeId", "depth", "nonce", "input", "code", "initialGas", "leftOverGas", "ret", "error"))
+	stmt, err2 := txn.Prepare(pq.CopyIn("internal_transaction", "blockNumber", "timestamp", "transactionHash", "from", "to", "contractCodeAddr", "value", "opcode", "transactionTypeId", "depth", "nonce", "input", "code", "initialGas", "leftOverGas", "ret", "error"))
 	common.CheckErr(err2, txn)
 	for _, internalTx := range internalTxStore {
-		_, err := stmt.Exec(internalTx.BlockNumberNumber, time.Unix(internalTx.TimestampSec, 0).UTC(), internalTx.ThashString, internalTx.SrcString, internalTx.DestString, internalTx.ValueString, internalTx.Opcode, internalTx.TxType, internalTx.Depth, internalTx.Nonce, internalTx.InputString, internalTx.CodeString, internalTx.InitialGas, internalTx.LeftOverGas, internalTx.RetString, internalTx.ErrString)
+		_, err := stmt.Exec(internalTx.BlockNumberNumber, time.Unix(internalTx.TimestampSec, 0).UTC(), internalTx.ThashString, internalTx.SrcString, internalTx.DestString, internalTx.ContractCodeAddrString, internalTx.ValueString, internalTx.Opcode, internalTx.TxType, internalTx.Depth, internalTx.Nonce, internalTx.InputString, internalTx.CodeString, internalTx.InitialGas, internalTx.LeftOverGas, internalTx.RetString, internalTx.ErrString)
 		common.CheckErr(err, txn)
 	}
 	_, err3 := stmt.Exec()
@@ -215,8 +215,8 @@ func saveInternalTxFromSingleTx(dbo *sql.DB, blockNumber *big.Int, tHash common.
 func saveInternalTx(dbo *sql.DB, internalTxStore []*types.InternalTx) uint64 {
 	totalRowsAffected := uint64(0)
 	for _, internalTx := range internalTxStore {
-		result, err2 := dbo.Exec("INSERT INTO internal_transaction (\"blockNumber\", \"timestamp\", \"transactionHash\", \"from\", \"to\", \"value\", \"opcode\", \"transactionTypeId\", \"depth\", \"nonce\", \"input\", \"code\", \"initialGas\", \"leftOverGas\", \"ret\", \"error\") VALUES ($1, $2, $3, $4, $5, $6::NUMERIC, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) ON CONFLICT (\"transactionHash\", \"nonce\") DO UPDATE SET \"blockNumber\" = EXCLUDED.\"blockNumber\", \"timestamp\" = EXCLUDED.\"timestamp\"",
-			internalTx.BlockNumberNumber, time.Unix(internalTx.TimestampSec, 0).UTC(), internalTx.ThashString, internalTx.SrcString, internalTx.DestString, internalTx.ValueString, internalTx.Opcode, internalTx.TxType, internalTx.Depth, internalTx.Nonce, internalTx.InputString, internalTx.CodeString, internalTx.InitialGas, internalTx.LeftOverGas, internalTx.RetString, internalTx.ErrString)
+		result, err2 := dbo.Exec("INSERT INTO internal_transaction (\"blockNumber\", \"timestamp\", \"transactionHash\", \"from\", \"to\", \"contractCodeAddr\",\"value\", \"opcode\", \"transactionTypeId\", \"depth\", \"nonce\", \"input\", \"code\", \"initialGas\", \"leftOverGas\", \"ret\", \"error\") VALUES ($1, $2, $3, $4, $5, $6, $7::NUMERIC, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) ON CONFLICT (\"transactionHash\", \"nonce\") DO UPDATE SET \"blockNumber\" = EXCLUDED.\"blockNumber\", \"timestamp\" = EXCLUDED.\"timestamp\"",
+			internalTx.BlockNumberNumber, time.Unix(internalTx.TimestampSec, 0).UTC(), internalTx.ThashString, internalTx.SrcString, internalTx.DestString, internalTx.ContractCodeAddrString, internalTx.ValueString, internalTx.Opcode, internalTx.TxType, internalTx.Depth, internalTx.Nonce, internalTx.InputString, internalTx.CodeString, internalTx.InitialGas, internalTx.LeftOverGas, internalTx.RetString, internalTx.ErrString)
 		common.CheckErr(err2, nil)
 		rowAffected, err3 := result.RowsAffected()
 		common.CheckErr(err3, nil)

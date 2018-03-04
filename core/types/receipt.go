@@ -43,22 +43,23 @@ const (
 )
 
 type InternalTx struct {
-	BlockNumberNumber uint64
-	TimestampSec      int64
-	ThashString       string
-	SrcString         string
-	DestString        string
-	ValueString       string
-	Opcode            string
-	TxType            int
-	Depth             int
-	Nonce             uint64
-	InputString       string
-	CodeString        string
-	InitialGas        uint64
-	LeftOverGas       uint64
-	RetString         string
-	ErrString         string
+	BlockNumberNumber      uint64
+	TimestampSec           int64
+	ThashString            string
+	SrcString              string
+	DestString             string
+	ContractCodeAddrString string
+	ValueString            string
+	Opcode                 string
+	TxType                 int
+	Depth                  int
+	Nonce                  uint64
+	InputString            string
+	CodeString             string
+	InitialGas             uint64
+	LeftOverGas            uint64
+	RetString              string
+	ErrString              string
 }
 
 // Receipt represents the results of a transaction.
