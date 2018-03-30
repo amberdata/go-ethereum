@@ -38,7 +38,7 @@ import (
 	"github.com/lib/pq"
 )
 
-var connStr = "host=localhost port=5432 dbname=ethereum user=" + os.Getenv("DATABASE_USERNAME") + " password=" + os.Getenv("DATABASE_PASSWORD") + " sslmode=disable"
+var connStr = "host=" + os.Getenv("DATABASE_HOSTNAME") + " port=" + os.Getenv("DATABASE_PORT") + " dbname=" + os.Getenv("DATABASE_NAME") + " user=" + os.Getenv("DATABASE_USERNAME") + " password=" + os.Getenv("DATABASE_PASSWORD") + " sslmode=disable"
 var dbo = connectDB(connStr)
 
 func connectDB(connStr string) *sql.DB {
