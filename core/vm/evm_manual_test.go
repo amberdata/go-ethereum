@@ -48,7 +48,7 @@ func TestSaveInternalTx_Multiple(t *testing.T) {
 	assert.Equal(t, 2, len(newEVM.InternalTxStore))
 }
 
-func TestSaveInternalTx_NonceShouldIncrease(t *testing.T) {
+func TestSaveInternalTx_IndexShouldIncrease(t *testing.T) {
 	blockNumber, _ := big.NewInt(0).SetString("4370000", 10)
 	timestamp, _ := big.NewInt(0).SetString("1508131331", 10)
 	thash := common.HexToHash("0xba87b27b862ba1a638ae0b418bde7ad4bcc8ee86d69f9c0b2d1fd69524491f2e")
@@ -59,10 +59,10 @@ func TestSaveInternalTx_NonceShouldIncrease(t *testing.T) {
 	opcode := "CREATE"
 	txType := 1
 	newEVM := &EVM{InternalTxStore: []*types.InternalTx{}}
-	initialNonce := uint64(10)
-	newEVM.InternalTxNonce = initialNonce
-	newEVM.SaveInternalTx(blockNumber, timestamp, thash, src, dest, contractCodeAddr, value, opcode, txType, 1, newEVM.InternalTxNonce, nil, nil, 0, 0, nil, nil)
-	assert.Equal(t, initialNonce+1, newEVM.InternalTxNonce)
+	initialIndex := uint64(10)
+	newEVM.InternalTxIndex = initialIndex
+	newEVM.SaveInternalTx(blockNumber, timestamp, thash, src, dest, contractCodeAddr, value, opcode, txType, 1, newEVM.InternalTxIndex, nil, nil, 0, 0, nil, nil)
+	assert.Equal(t, initialIndex+1, newEVM.InternalTxIndex)
 }
 
 // func TestSaveInternalTx2(t *testing.T) {

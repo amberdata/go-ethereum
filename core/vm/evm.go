@@ -17,11 +17,13 @@
 package vm
 
 import (
+	"flag"
 	"fmt"
 	"math/big"
+	"os"
+	"strconv"
 	"strings"
 	"sync/atomic"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -36,8 +38,33 @@ import (
 // deployed contract addresses (relevant after the account abstraction).
 var emptyCodeHash = crypto.Keccak256Hash(nil)
 var internalTxTypeMap = map[string]int{
-	"c2c": 1,
-	"c2e": 2,
+	"unknown":                       0,
+	"contract_creation_by_contract": 1,
+	"contract_creation_by_eoa":      2,
+	"c2c": 3,
+	"c2e": 4,
+	"e2c": 5,
+	"e2e": 6,
+}
+
+var enableSaveInternalTx = getEnableSaveInternalTx()
+
+func getEnableSaveInternalTx() bool {
+	fmt.Printf("flag.Lookup(\"test.v\") = %s\n", flag.Lookup("test.v")) // too strange: if this line is removed, one test will fail!
+	if flag.Lookup("test.v") != nil {
+		return true
+	}
+	enableSaveInternalTxString := os.Getenv("GETH_ENABLE_SAVE_INTERNAL_MESSAGE")
+	if len(enableSaveInternalTxString) > 0 {
+		enableSaveInternalTx, err := strconv.ParseBool(enableSaveInternalTxString)
+		if err != nil {
+			panic(fmt.Sprintf("Cannot parse enableSaveInternalTxString: %s", enableSaveInternalTxString))
+		}
+		fmt.Printf("enableSaveInternalTx = %t\n", enableSaveInternalTx)
+		return enableSaveInternalTx
+	} else {
+		return false
+	}
 }
 
 type (
@@ -116,21 +143,23 @@ type EVM struct {
 	// NOTE: must be set atomically
 	abort int32
 
-	InternalTxNonce uint64
-	InternalTxStore []*types.InternalTx
+	InternalTxIndex        uint64
+	InternalTxStore        []*types.InternalTx
+	createdContractAddrMap map[string]bool
 }
 
 // NewEVM retutrns a new EVM . The returned EVM is not thread safe and should
 // only ever be used *once*.
 func NewEVM(ctx Context, statedb StateDB, chainConfig *params.ChainConfig, vmConfig Config) *EVM {
 	evm := &EVM{
-		Context:         ctx,
-		StateDB:         statedb,
-		vmConfig:        vmConfig,
-		chainConfig:     chainConfig,
-		chainRules:      chainConfig.Rules(ctx.BlockNumber),
-		InternalTxNonce: 0,
-		InternalTxStore: []*types.InternalTx{},
+		Context:                ctx,
+		StateDB:                statedb,
+		vmConfig:               vmConfig,
+		chainConfig:            chainConfig,
+		chainRules:             chainConfig.Rules(ctx.BlockNumber),
+		InternalTxIndex:        0,
+		InternalTxStore:        []*types.InternalTx{},
+		createdContractAddrMap: map[string]bool{},
 	}
 
 	evm.interpreter = NewInterpreter(evm, vmConfig)
@@ -198,9 +227,10 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	// fmt.Printf("evm depth in call is %d\n", evm.depth)
 	// fmt.Printf("evm.StateDB.GetCodeHash(to.Address()) = %d\n", evm.StateDB.GetCodeHash(to.Address()))
 
-	if evm.depth > 0 {
-		// evm.CheckInvariant(contract.Caller())
-		evm.SaveInternalTx(evm.BlockNumber, evm.Time, evm.StateDB.(*state.StateDB).GetThash(), contract.Caller(), to.Address(), addr, value, "CALL", evm.address2internalTxType(to.Address()), evm.depth, evm.InternalTxNonce, input, nil, gas, contract.Gas, ret, err)
+	// evm.CheckInvariant(contract.Caller())
+	txType := evm.address2internalTxType(evm.depth, to.Address())
+	if txType != internalTxTypeMap["e2e"] {
+		evm.SaveInternalTx(evm.BlockNumber, evm.Time, evm.StateDB.(*state.StateDB).GetThash(), contract.Caller(), to.Address(), addr, value, "CALL", txType, evm.depth, evm.InternalTxIndex, input, nil, gas, contract.Gas, ret, err)
 	}
 
 	return ret, contract.Gas, err
@@ -245,10 +275,8 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 		}
 	}
 
-	if evm.depth > 0 {
-		// evm.CheckInvariant(contract.Caller())
-		evm.SaveInternalTx(evm.BlockNumber, evm.Time, evm.StateDB.(*state.StateDB).GetThash(), contract.Caller(), to.Address(), addr, value, "CALLCODE", internalTxTypeMap["c2c"], evm.depth, evm.InternalTxNonce, input, nil, gas, contract.Gas, ret, err)
-	}
+	// evm.CheckInvariant(contract.Caller())
+	evm.SaveInternalTx(evm.BlockNumber, evm.Time, evm.StateDB.(*state.StateDB).GetThash(), contract.Caller(), to.Address(), addr, value, "CALLCODE", internalTxTypeMap["c2c"], evm.depth, evm.InternalTxIndex, input, nil, gas, contract.Gas, ret, err)
 
 	return ret, contract.Gas, err
 }
@@ -284,10 +312,12 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 		}
 	}
 
-	if evm.depth > 0 {
-		// evm.CheckInvariant(contract.Caller())
-		evm.SaveInternalTx(evm.BlockNumber, evm.Time, evm.StateDB.(*state.StateDB).GetThash(), contract.Caller(), to.Address(), addr, nil, "DELEGATECALL", internalTxTypeMap["c2c"], evm.depth, evm.InternalTxNonce, input, nil, gas, contract.Gas, ret, err)
+	// evm.CheckInvariant(contract.Caller())
+	txType := internalTxTypeMap["c2c"]
+	if evm.depth == 1 {
+		txType = internalTxTypeMap["e2c"]
 	}
+	evm.SaveInternalTx(evm.BlockNumber, evm.Time, evm.StateDB.(*state.StateDB).GetThash(), contract.Caller(), to.Address(), addr, nil, "DELEGATECALL", txType, evm.depth, evm.InternalTxIndex, input, nil, gas, contract.Gas, ret, err)
 
 	return ret, contract.Gas, err
 }
@@ -372,6 +402,7 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	if evm.vmConfig.NoRecursion && evm.depth > 0 {
 		return nil, contractAddr, gas, nil
 	}
+	evm.createdContractAddrMap[strings.ToLower(contractAddr.Hex())] = true
 	ret, err = run(evm, snapshot, contract, nil)
 	// check whether the max code size has been exceeded
 	maxCodeSizeExceeded := evm.ChainConfig().IsEIP158(evm.BlockNumber) && len(ret) > params.MaxCodeSize
@@ -405,10 +436,12 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	// fmt.Printf("evm depth in create is %d\n", evm.depth)
 	// fmt.Printf("len(evm.StateDB.GetCodeHash(caller.Address())) = %d\n", len(evm.StateDB.GetCodeHash(caller.Address())))
 
-	if evm.depth > 0 {
-		// evm.CheckInvariant(contract.Caller())
-		evm.SaveInternalTx(evm.BlockNumber, evm.Time, evm.StateDB.(*state.StateDB).GetThash(), contract.Caller(), contractAddr, contractAddr, value, "CREATE", internalTxTypeMap["c2c"], evm.depth, evm.InternalTxNonce, nil, code, gas, contract.Gas, ret, err)
+	// evm.CheckInvariant(contract.Caller())
+	txType := internalTxTypeMap["contract_creation_by_contract"]
+	if evm.depth == 0 {
+		txType = internalTxTypeMap["contract_creation_by_eoa"]
 	}
+	evm.SaveInternalTx(evm.BlockNumber, evm.Time, evm.StateDB.(*state.StateDB).GetThash(), contract.Caller(), contractAddr, contractAddr, value, "CREATE", txType, evm.depth, evm.InternalTxIndex, nil, code, gas, contract.Gas, ret, err)
 
 	return ret, contractAddr, contract.Gas, err
 }
@@ -420,20 +453,23 @@ func (evm *EVM) ChainConfig() *params.ChainConfig { return evm.chainConfig }
 func (evm *EVM) Interpreter() *Interpreter { return evm.interpreter }
 
 func (evm *EVM) SaveInternalTx(blockNumber *big.Int, timestamp *big.Int, thash common.Hash, src common.Address, dest common.Address, contractCodeAddr common.Address, value *big.Int, opcode string, txType int, depth int, nonce uint64, input []byte, code []byte, initialGas uint64, leftOverGas uint64, ret []byte, err error) uint64 {
+	if !enableSaveInternalTx {
+		return 0
+	}
 	valueString := "0"
 	if value != nil {
 		valueString = value.Text(10)
 	}
 	inputString := ""
-	if input != nil {
+	if len(input) > 0 {
 		inputString = hexutil.Encode(input)
 	}
 	codeString := ""
-	if code != nil {
+	if len(code) > 0 {
 		codeString = hexutil.Encode(code)
 	}
 	retString := ""
-	if ret != nil {
+	if len(ret) > 0 {
 		retString = hexutil.Encode(ret)
 	}
 	errString := ""
@@ -451,7 +487,7 @@ func (evm *EVM) SaveInternalTx(blockNumber *big.Int, timestamp *big.Int, thash c
 		Opcode:                 opcode,
 		TxType:                 txType,
 		Depth:                  depth,
-		Nonce:                  nonce,
+		Index:                  nonce,
 		InputString:            inputString,
 		CodeString:             codeString,
 		InitialGas:             initialGas,
@@ -459,20 +495,33 @@ func (evm *EVM) SaveInternalTx(blockNumber *big.Int, timestamp *big.Int, thash c
 		RetString:              retString,
 		ErrString:              errString,
 	})
-	evm.InternalTxNonce++
+	evm.InternalTxIndex++
 	return 1
 }
 
-func (evm *EVM) address2internalTxType(dest common.Address) int {
-	startTimestamp := time.Now().UTC()
+func (evm *EVM) address2internalTxType(depth int, dest common.Address) int {
+	// startTimestamp := time.Now().UTC()
 	contractHash := evm.StateDB.GetCodeHash(dest)
-	endTimestamp := time.Now().UTC()
-	elapsed := endTimestamp.Sub(startTimestamp)
-	fmt.Printf("evm.StateDB.GetCodeHash took %d nanosecond\n", elapsed)
+	// endTimestamp := time.Now().UTC()
+	// elapsed := endTimestamp.Sub(startTimestamp)
+	// fmt.Printf("evm.StateDB.GetCodeHash took %d nanosecond\n", elapsed)
 	if (contractHash == emptyCodeHash || contractHash == common.Hash{}) {
-		return internalTxTypeMap["c2e"]
+		if depth > 0 {
+			if evm.createdContractAddrMap[strings.ToLower(dest.Hex())] {
+				return internalTxTypeMap["c2c"]
+			} else {
+				return internalTxTypeMap["c2e"]
+			}
+		} else {
+			return internalTxTypeMap["e2e"]
+		}
+	} else {
+		if depth > 0 {
+			return internalTxTypeMap["c2c"]
+		} else {
+			return internalTxTypeMap["e2c"]
+		}
 	}
-	return internalTxTypeMap["c2c"]
 }
 
 // func (evm *EVM) CheckInvariant(src common.Address) {

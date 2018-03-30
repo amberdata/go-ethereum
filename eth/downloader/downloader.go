@@ -20,9 +20,12 @@ package downloader
 import (
 	"crypto/rand"
 	"errors"
+	"flag"
 	"fmt"
 	"math"
 	"math/big"
+	"os"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -93,6 +96,26 @@ var (
 	errNoSyncActive            = errors.New("no sync active")
 	errTooOld                  = errors.New("peer doesn't speak recent enough protocol version (need version >= 62)")
 )
+
+var fullSyncStartBlock = getFullSyncStartBlock()
+
+func getFullSyncStartBlock() uint64 {
+	fmt.Printf("flag.Lookup(\"test.v\") = %s\n", flag.Lookup("test.v")) // too strange: if this line is removed, one test will fail!
+	if flag.Lookup("test.v") != nil {
+		return 0
+	}
+	fullSyncStartBlockString := os.Getenv("GETH_FULL_SYNC_START_BLOCK")
+	if len(fullSyncStartBlockString) > 0 {
+		fullSyncStartBlock, err := strconv.ParseUint(fullSyncStartBlockString, 10, 64)
+		if err != nil {
+			panic(fmt.Sprintf("Cannot parse fullSyncStartBlockString: %s", fullSyncStartBlockString))
+		}
+		fmt.Printf("fullSyncStartBlock = %d\n", fullSyncStartBlock)
+		return fullSyncStartBlock
+	} else {
+		return 0
+	}
+}
 
 type Downloader struct {
 	mode SyncMode       // Synchronisation mode defining the strategy used (per sync cycle)
@@ -462,6 +485,9 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td *big.I
 			} else {
 				origin = 0
 			}
+		}
+		if fullSyncStartBlock > 0 && pivot > fullSyncStartBlock-1 {
+			pivot = fullSyncStartBlock - 1
 		}
 		log.Debug("Fast syncing until pivot block", "pivot", pivot)
 	}

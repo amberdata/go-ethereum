@@ -72,7 +72,7 @@ func whereAmI(depthList ...int) string {
 		depth = depthList[0]
 	}
 	function, file, line, _ := runtime.Caller(depth)
-	return fmt.Sprintf("File: %s  Function: %s Line: %d", chopPath(file), runtime.FuncForPC(function).Name(), line)
+	return fmt.Sprintf("File: %s  Function: %s Line: %d", file, runtime.FuncForPC(function).Name(), line)
 }
 
 // return the source filename after the last slash

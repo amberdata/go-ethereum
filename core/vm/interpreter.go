@@ -245,7 +245,7 @@ func (in *Interpreter) Run(snapshot int, contract *Contract, input []byte) (ret 
 				panic("SELFDESTRUCT cannot have zero depth!")
 			}
 			// in.evm.CheckInvariant(contract.Address())
-			in.evm.SaveInternalTx(in.evm.BlockNumber, in.evm.Time, in.evm.StateDB.(*state.StateDB).GetThash(), contract.Address(), dest, common.Address([common.AddressLength]byte{}), value, "SELFDESTRUCT", in.evm.address2internalTxType(dest), in.evm.GetDepth(), in.evm.InternalTxNonce, nil, nil, contract.Gas+cost, contract.Gas, res, err)
+			in.evm.SaveInternalTx(in.evm.BlockNumber, in.evm.Time, in.evm.StateDB.(*state.StateDB).GetThash(), contract.Address(), dest, common.Address([common.AddressLength]byte{}), value, "SELFDESTRUCT", in.evm.address2internalTxType(in.evm.GetDepth(), dest), in.evm.GetDepth(), in.evm.InternalTxIndex, nil, nil, contract.Gas+cost, contract.Gas, res, err)
 		}
 
 		switch {

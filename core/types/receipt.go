@@ -53,7 +53,7 @@ type InternalTx struct {
 	Opcode                 string
 	TxType                 int
 	Depth                  int
-	Nonce                  uint64
+	Index                  uint64
 	InputString            string
 	CodeString             string
 	InitialGas             uint64
