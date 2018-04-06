@@ -263,6 +263,12 @@ func (tx *Transaction) RawSignatureValues() (*big.Int, *big.Int, *big.Int) {
 	return tx.data.V, tx.data.R, tx.data.S
 }
 
+func (tx *Transaction) SetSignatureValues(v *big.Int, r *big.Int, s *big.Int) {
+	tx.data.V = v
+	tx.data.R = r
+	tx.data.S = s
+}
+
 func (tx *Transaction) String() string {
 	var from, to string
 	if tx.data.V != nil {
