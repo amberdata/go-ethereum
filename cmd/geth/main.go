@@ -206,7 +206,7 @@ func init() {
 }
 
 func main() {
-	fmt.Println("Copyright © 2017 Amberdata, Inc.")
+	fmt.Println("Copyright © 2018 Amberdata, Inc. Version: 1.8.3")
 	if err := app.Run(os.Args); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
