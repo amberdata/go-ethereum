@@ -179,7 +179,7 @@ func saveInternalTxFromSingleBlock(dbo *sql.DB, blockNumber *big.Int, internalTx
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println("Recovered in saveInternalTxFromSingleBlock: ", r)
-			saveInternalTx(dbo, internalTxStore)
+			// saveInternalTx(dbo, internalTxStore)
 		}
 	}()
 	if len(internalTxStore) == 0 {
