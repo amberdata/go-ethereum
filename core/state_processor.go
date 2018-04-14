@@ -180,8 +180,13 @@ func saveInternalTxFromSingleBlock(dbo *sql.DB, blockNumber *big.Int, internalTx
 		if r := recover(); r != nil {
 			fmt.Println("Recovered in saveInternalTxFromSingleBlock: ", r)
 			// saveInternalTx(dbo, internalTxStore)
+			saveInternalTxFromSingleBlockRequired(dbo, blockNumber, internalTxStore, true)
 		}
 	}()
+	return saveInternalTxFromSingleBlockRequired(dbo, blockNumber, internalTxStore, false)
+}
+
+func saveInternalTxFromSingleBlockRequired(dbo *sql.DB, blockNumber *big.Int, internalTxStore []*types.InternalTx, deleteFirst bool) uint64 {
 	if len(internalTxStore) == 0 {
 		return 0
 	}
@@ -189,6 +194,10 @@ func saveInternalTxFromSingleBlock(dbo *sql.DB, blockNumber *big.Int, internalTx
 	startTimestamp := time.Now().UTC()
 	txn, err1 := dbo.Begin()
 	common.CheckErr(err1, txn)
+	if deleteFirst {
+		_, err2 := txn.Exec(`DELETE FROM internal_message WHERE "blockNumber" = $1`, blockNumber.Uint64())
+		common.CheckErr(err2, txn)
+	}
 	stmt, err2 := txn.Prepare(pq.CopyIn("internal_message", "blockNumber", "timestamp", "transactionHash", "from", "to", "contractCodeAddress", "value", "opcode", "transactionTypeId", "depth", "messageIndex", "input", "code", "initialGas", "leftOverGas", "returnValue", "error"))
 	common.CheckErr(err2, txn)
 	for _, internalTx := range internalTxStore {
