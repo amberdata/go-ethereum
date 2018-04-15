@@ -194,22 +194,26 @@ func saveInternalTxFromSingleBlockRequired(dbo *sql.DB, blockNumber *big.Int, in
 	startTimestamp := time.Now().UTC()
 	txn, err1 := dbo.Begin()
 	common.CheckErr(err1, txn)
+	fmt.Println("no err1")
 	if deleteFirst {
 		_, err2 := txn.Exec(`DELETE FROM internal_message WHERE "blockNumber" = $1`, blockNumber.Uint64())
 		common.CheckErr(err2, txn)
 	}
 	stmt, err2 := txn.Prepare(pq.CopyIn("internal_message", "blockNumber", "timestamp", "transactionHash", "from", "to", "contractCodeAddress", "value", "opcode", "transactionTypeId", "depth", "messageIndex", "input", "code", "initialGas", "leftOverGas", "returnValue", "error"))
 	common.CheckErr(err2, txn)
+	fmt.Println("no err2")
 	for _, internalTx := range internalTxStore {
 		_, err := stmt.Exec(internalTx.BlockNumberNumber, time.Unix(internalTx.TimestampSec, 0).UTC(), internalTx.ThashString, internalTx.SrcString, internalTx.DestString, internalTx.ContractCodeAddrString, internalTx.ValueString, internalTx.Opcode, internalTx.TxType, internalTx.Depth, internalTx.Index, internalTx.InputString, internalTx.CodeString, internalTx.InitialGas, internalTx.LeftOverGas, internalTx.RetString, internalTx.ErrString)
 		common.CheckErr(err, txn)
 	}
 	_, err3 := stmt.Exec()
 	common.CheckErr(err3, txn)
+	fmt.Println("no err3")
 	// err4 := stmt.Close()
 	// common.CheckErr(err4, txn)
 	err5 := txn.Commit()
 	common.CheckErr(err5, txn)
+	fmt.Println("no err5")
 	endTimestamp := time.Now().UTC()
 	elapsed := endTimestamp.Sub(startTimestamp)
 	fmt.Printf("%s: execution took %s, saved internal tx: blockNumber = %d\n", endTimestamp.Format("2006-01-02 15:04:05"), elapsed.Round(time.Millisecond).String(), blockNumber.Uint64())
