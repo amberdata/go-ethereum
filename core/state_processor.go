@@ -198,6 +198,7 @@ func saveInternalTxFromSingleBlockRequired(dbo *sql.DB, blockNumber *big.Int, in
 	if deleteFirst {
 		_, err2 := txn.Exec(`DELETE FROM internal_message WHERE "blockNumber" = $1`, blockNumber.Uint64())
 		common.CheckErr(err2, txn)
+		fmt.Println("deleteFirst is true and no err2")
 	}
 	stmt, err2 := txn.Prepare(pq.CopyIn("internal_message", "blockNumber", "timestamp", "transactionHash", "from", "to", "contractCodeAddress", "value", "opcode", "transactionTypeId", "depth", "messageIndex", "input", "code", "initialGas", "leftOverGas", "returnValue", "error"))
 	common.CheckErr(err2, txn)
