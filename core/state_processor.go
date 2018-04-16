@@ -178,8 +178,12 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 func saveInternalTxFromSingleBlock(dbo *sql.DB, blockNumber *big.Int, internalTxStore []*types.InternalTx) uint64 {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("Recovered in saveInternalTxFromSingleBlock: ", r)
+			fmt.Println("Recovered in saveInternalTxFromSingleBlock level 1: ", r)
 			// saveInternalTx(dbo, internalTxStore)
+			defer func() {
+				fmt.Println("Recovered in saveInternalTxFromSingleBlock level 2: ", r)
+				saveInternalTx(dbo, internalTxStore)
+			}()
 			saveInternalTxFromSingleBlockRequired(dbo, blockNumber, internalTxStore, true)
 		}
 	}()
