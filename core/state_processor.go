@@ -181,8 +181,10 @@ func saveInternalTxFromSingleBlock(dbo *sql.DB, blockNumber *big.Int, internalTx
 			fmt.Println("Recovered in saveInternalTxFromSingleBlock level 1: ", r)
 			// saveInternalTx(dbo, internalTxStore)
 			defer func() {
-				fmt.Println("Recovered in saveInternalTxFromSingleBlock level 2: ", r)
-				saveInternalTx(dbo, internalTxStore)
+				if r := recover(); r != nil {
+					fmt.Println("Recovered in saveInternalTxFromSingleBlock level 2: ", r)
+					saveInternalTx(dbo, internalTxStore)
+				}
 			}()
 			saveInternalTxFromSingleBlockRequired(dbo, blockNumber, internalTxStore, true)
 		}
