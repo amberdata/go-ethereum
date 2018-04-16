@@ -54,7 +54,9 @@ func PrintDepricationWarning(str string) {
 
 func CheckErr(err error, tx *sql.Tx) {
 	if err != nil {
+		fmt.Printf("tx = %v\n", tx)
 		if tx != nil {
+			fmt.Printf("before tx roll back: %s, %s\n", whereAmI(2), err.Error())
 			tx.Rollback()
 		}
 		fmt.Printf("%s, %s\n", whereAmI(2), err.Error())
