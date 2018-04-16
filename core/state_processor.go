@@ -213,6 +213,7 @@ func saveInternalTxFromSingleBlockRequired(dbo *sql.DB, blockNumber *big.Int, in
 		_, err := stmt.Exec(internalTx.BlockNumberNumber, time.Unix(internalTx.TimestampSec, 0).UTC(), internalTx.ThashString, internalTx.SrcString, internalTx.DestString, internalTx.ContractCodeAddrString, internalTx.ValueString, internalTx.Opcode, internalTx.TxType, internalTx.Depth, internalTx.Index, internalTx.InputString, internalTx.CodeString, internalTx.InitialGas, internalTx.LeftOverGas, internalTx.RetString, internalTx.ErrString)
 		common.CheckErr(err, txn)
 	}
+	fmt.Println("no error in the loop of stmt.Exec(internalTx.BlockNumberNumber...")
 	_, err3 := stmt.Exec()
 	common.CheckErr(err3, txn)
 	fmt.Println("no err3")
