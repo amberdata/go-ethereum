@@ -17,6 +17,7 @@
 package core
 
 import (
+	"bytes"
 	"database/sql"
 	"flag"
 	"fmt"
@@ -176,21 +177,103 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 }
 
 func saveInternalTxFromSingleBlock(dbo *sql.DB, blockNumber *big.Int, internalTxStore []*types.InternalTx) uint64 {
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println("Recovered in saveInternalTxFromSingleBlock level 1: ", r)
-			// saveInternalTx(dbo, internalTxStore)
-			defer func() {
-				if r := recover(); r != nil {
-					fmt.Println("Recovered in saveInternalTxFromSingleBlock level 2: ", r)
-					saveInternalTx(dbo, internalTxStore)
-				}
-			}()
-			saveInternalTxFromSingleBlockRequired(dbo, blockNumber, internalTxStore, true)
-		}
-	}()
-	return saveInternalTxFromSingleBlockRequired(dbo, blockNumber, internalTxStore, false)
+	if len(internalTxStore) == 0 {
+		return 0
+	}
+	fmt.Printf("len(internalTxStore) = %d\n", len(internalTxStore))
+	startTimestamp := time.Now().UTC()
+	var buffer bytes.Buffer
+	for _, internalTx := range internalTxStore {
+		buffer.WriteString("('")
+		buffer.WriteString(strconv.FormatUint(internalTx.BlockNumberNumber, 10))
+		buffer.WriteString("',to_timestamp(")
+		buffer.WriteString(strconv.FormatInt(int64(time.Unix(internalTx.TimestampSec, 0).UTC().Unix()), 10))
+		buffer.WriteString("),'")
+		buffer.WriteString(internalTx.ThashString)
+		buffer.WriteString("','")
+		buffer.WriteString(internalTx.SrcString)
+		buffer.WriteString("','")
+		buffer.WriteString(internalTx.DestString)
+		buffer.WriteString("','")
+		buffer.WriteString(internalTx.ContractCodeAddrString)
+		buffer.WriteString("','")
+		buffer.WriteString(internalTx.ValueString)
+		buffer.WriteString("','")
+		buffer.WriteString(internalTx.Opcode)
+		buffer.WriteString("','")
+		buffer.WriteString(strconv.FormatInt(int64(internalTx.TxType), 10))
+		buffer.WriteString("','")
+		buffer.WriteString(strconv.FormatInt(int64(internalTx.Depth), 10))
+		buffer.WriteString("','")
+		buffer.WriteString(strconv.FormatUint(internalTx.Index, 10))
+		buffer.WriteString("','")
+		buffer.WriteString(internalTx.InputString)
+		buffer.WriteString("','")
+		buffer.WriteString(internalTx.CodeString)
+		buffer.WriteString("','")
+		buffer.WriteString(strconv.FormatUint(internalTx.InitialGas, 10))
+		buffer.WriteString("','")
+		buffer.WriteString(strconv.FormatUint(internalTx.LeftOverGas, 10))
+		buffer.WriteString("','")
+		buffer.WriteString(internalTx.RetString)
+		buffer.WriteString("','")
+		buffer.WriteString(internalTx.ErrString)
+		buffer.WriteString("'),")
+	}
+	sqlStr := fmt.Sprintf(`
+		INSERT INTO internal_message (
+		"blockNumber",
+		"timestamp",
+		"transactionHash",
+		"from",
+		"to",
+		"contractCodeAddress",
+		"value",
+		"opcode",
+		"transactionTypeId",
+		"depth",
+		"messageIndex",
+		"input",
+		"code",
+		"initialGas",
+		"leftOverGas",
+		"returnValue",
+		"error"
+		)
+		VALUES %s
+		ON CONFLICT ("transactionHash", "messageIndex")
+		DO UPDATE SET
+		"blockNumber" = EXCLUDED."blockNumber", "timestamp" = EXCLUDED."timestamp"
+		`,
+		strings.TrimSuffix(buffer.String(), ","))
+	// fmt.Printf("sqlStr = %s\n", sqlStr)
+	result, err1 := dbo.Exec(sqlStr)
+	common.CheckErr(err1, nil)
+	totalRowsAffected, err2 := result.RowsAffected()
+	common.CheckErr(err2, nil)
+	endTimestamp := time.Now().UTC()
+	elapsed := endTimestamp.Sub(startTimestamp)
+	fmt.Printf("%s: execution took %s, saved internal tx: blockNumber = %d\n", endTimestamp.Format("2006-01-02 15:04:05"), elapsed.Round(time.Millisecond).String(), blockNumber.Uint64())
+	fmt.Printf("len(internalTxStore) = %d, totalRowsAffected = %d\n", len(internalTxStore), totalRowsAffected)
+	return uint64(totalRowsAffected)
 }
+
+// func saveInternalTxFromSingleBlock(dbo *sql.DB, blockNumber *big.Int, internalTxStore []*types.InternalTx) uint64 {
+// 	defer func() {
+// 		if r := recover(); r != nil {
+// 			fmt.Println("Recovered in saveInternalTxFromSingleBlock level 1: ", r)
+// 			// saveInternalTx(dbo, internalTxStore)
+// 			defer func() {
+// 				if r := recover(); r != nil {
+// 					fmt.Println("Recovered in saveInternalTxFromSingleBlock level 2: ", r)
+// 					saveInternalTx(dbo, internalTxStore)
+// 				}
+// 			}()
+// 			saveInternalTxFromSingleBlockRequired(dbo, blockNumber, internalTxStore, true)
+// 		}
+// 	}()
+// 	return saveInternalTxFromSingleBlockRequired(dbo, blockNumber, internalTxStore, false)
+// }
 
 func saveInternalTxFromSingleBlockRequired(dbo *sql.DB, blockNumber *big.Int, internalTxStore []*types.InternalTx, deleteFirst bool) uint64 {
 	if len(internalTxStore) == 0 {
