@@ -180,7 +180,7 @@ func saveInternalTxFromSingleBlock(dbo *sql.DB, blockNumber *big.Int, internalTx
 	if len(internalTxStore) == 0 {
 		return 0
 	}
-	fmt.Printf("len(internalTxStore) = %d\n", len(internalTxStore))
+	// fmt.Printf("len(internalTxStore) = %d\n", len(internalTxStore))
 	startTimestamp := time.Now().UTC()
 	var buffer bytes.Buffer
 	for _, internalTx := range internalTxStore {
