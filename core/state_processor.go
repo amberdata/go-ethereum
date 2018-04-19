@@ -90,23 +90,23 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	if fullSyncEndBlock > 0 && block.NumberU64() > fullSyncEndBlock {
 		panic(fmt.Sprintf("going beyond fullSyncEndBlock: block.NumberU64() = %d, fullSyncEndBlock = %d", block.NumberU64(), fullSyncEndBlock))
 	}
-	// if flag.Lookup("test.v") == nil {
-	// 	shouldWait := true
-	// 	for shouldWait {
-	// 		var maxBlockNumber uint64
-	// 		err := db.DBO.QueryRow(`SELECT MAX(number) FROM block`).Scan(&maxBlockNumber)
-	// 		common.CheckErr(err, nil)
-	// 		fmt.Printf("maxBlockNumber = %d\n", maxBlockNumber)
-	// 		fmt.Printf("block.NumberU64() = %d\n", block.NumberU64())
-	// 		fmt.Printf("block.NumberU64()+6 = %d\n", block.NumberU64()+6)
-	// 		if maxBlockNumber <= block.NumberU64()+6 {
-	// 			fmt.Println("go to sleep")
-	// 			time.Sleep(time.Duration(db.BlockTime) * time.Second)
-	// 		} else {
-	// 			shouldWait = false
-	// 		}
-	// 	}
-	// }
+	if flag.Lookup("test.v") == nil {
+		shouldWait := true
+		for shouldWait {
+			var maxBlockNumber uint64
+			err := db.DBO.QueryRow(`SELECT MAX(number) FROM block`).Scan(&maxBlockNumber)
+			common.CheckErr(err, nil)
+			fmt.Printf("maxBlockNumber = %d\n", maxBlockNumber)
+			fmt.Printf("block.NumberU64() = %d\n", block.NumberU64())
+			fmt.Printf("block.NumberU64()+6 = %d\n", block.NumberU64()+6)
+			if maxBlockNumber <= block.NumberU64()+6 {
+				fmt.Println("go to sleep")
+				time.Sleep(time.Duration(db.BlockTime) * time.Second)
+			} else {
+				shouldWait = false
+			}
+		}
+	}
 
 	var (
 		receipts     types.Receipts
