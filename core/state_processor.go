@@ -149,7 +149,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	p.engine.Finalize(p.bc, header, statedb, block.Transactions(), block.Uncles(), receipts)
 	saveInternalTxFromSingleBlock(db.DBO, block.Number(), allInternalTxs)
-	log.Info(fmt.Sprintf("Processed block %d", block.NumberU64()))
+	log.Info(fmt.Sprintf("Processed block %d, timestamp %s, hash %s", block.NumberU64(), time.Unix(block.Time().Int64(), 0).UTC().String()), block.Hash().Hex())
 	return receipts, allLogs, totalUsedGas, nil
 }
 
@@ -278,7 +278,7 @@ func saveInternalTxFromSingleBlock(dbo *sql.DB, blockNumber *big.Int, internalTx
 	common.CheckErr(err2, nil)
 	endTimestamp := time.Now().UTC()
 	elapsed := endTimestamp.Sub(startTimestamp)
-	fmt.Printf("%s: execution took %s, saved internal tx: blockNumber = %d, timestamp = %s\n", endTimestamp.Format("2006-01-02 15:04:05"), elapsed.Round(time.Millisecond).String(), blockNumber.Uint64(), time.Unix(internalTxStore[0].TimestampSec, 0).UTC().String())
+	fmt.Printf("%s: execution took %s, saved internal tx: blockNumber = %d\n", endTimestamp.Format("2006-01-02 15:04:05"), elapsed.Round(time.Millisecond).String(), blockNumber.Uint64())
 	fmt.Printf("len(internalTxStore) = %d, totalRowsAffected = %d\n", len(internalTxStore), totalRowsAffected)
 	return uint64(totalRowsAffected)
 }
