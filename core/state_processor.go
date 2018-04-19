@@ -98,6 +98,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 			common.CheckErr(err, nil)
 			fmt.Printf("maxBlockNumber = %d\n", maxBlockNumber)
 			fmt.Printf("block.NumberU64() = %d\n", block.NumberU64())
+			fmt.Printf("maxBlockNumber-block.NumberU64() = %d\n", maxBlockNumber-block.NumberU64())
 			if maxBlockNumber-block.NumberU64() <= 6 {
 				fmt.Println("go to sleep")
 				time.Sleep(time.Duration(db.BlockTime) * time.Second)
