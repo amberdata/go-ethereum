@@ -31,7 +31,7 @@ func getFullSyncStartBlock() (FullSyncStartBlock uint64, BlockTime uint64) {
 	}
 	var dummyBlockNumber uint64
 	var epoch1, epoch2 int64
-	blockRows, err1 := DBO.Query(`SELECT "blockNumber", EXTRACT(EPOCH FROM MAX(timestamp)) FROM internal_message GROUP BY "blockNumber" ORDER BY "blockNumber" DESC LIMIT 2`)
+	blockRows, err1 := DBO.Query(`SELECT "blockNumber", EXTRACT(EPOCH FROM MAX(timestamp))::BIGINT FROM internal_message GROUP BY "blockNumber" ORDER BY "blockNumber" DESC LIMIT 2`)
 	defer blockRows.Close()
 	common.CheckErr(err1, nil)
 	if blockRows.Next() {
