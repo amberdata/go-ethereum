@@ -110,12 +110,12 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 				common.CheckErr(err3, nil)
 			}
 			blockTime := uint64(epoch2 - epoch1)
-			fmt.Printf("blockTime = %d seconds\n", blockTime)
-			fmt.Printf("maxBlockNumber = %d\n", maxBlockNumber)
-			fmt.Printf("block.NumberU64() = %d\n", block.NumberU64())
-			fmt.Printf("block.NumberU64()+6 = %d\n", block.NumberU64()+6)
+			// fmt.Printf("blockTime = %d seconds\n", blockTime)
+			// fmt.Printf("maxBlockNumber = %d\n", maxBlockNumber)
+			// fmt.Printf("block.NumberU64() = %d\n", block.NumberU64())
+			// fmt.Printf("block.NumberU64()+6 = %d\n", block.NumberU64()+6)
 			if maxBlockNumber <= block.NumberU64()+6 {
-				fmt.Println("go to sleep")
+				fmt.Printf("blockTime = %d seconds, go to sleep\n", blockTime)
 				time.Sleep(time.Duration(blockTime) * time.Second)
 			} else {
 				shouldWait = false
@@ -153,7 +153,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 			saveInternalTxFromSingleBlock(db.DBO, block.Number(), allInternalTxs)
 		}
 	}
-	log.Info(fmt.Sprintf("Processed block %d, timestamp %s, hash %s, td %s\n", block.NumberU64(), time.Unix(block.Time().Int64(), 0).UTC().String(), block.Hash().Hex(), block.DeprecatedTd().String()))
+	log.Info(fmt.Sprintf("Processed block %d, timestamp %s, hash %s, td %s", block.NumberU64(), time.Unix(block.Time().Int64(), 0).UTC().String(), block.Hash().Hex(), block.DeprecatedTd().String()))
 	return receipts, allLogs, totalUsedGas, nil
 }
 
