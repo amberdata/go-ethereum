@@ -149,7 +149,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	p.engine.Finalize(p.bc, header, statedb, block.Transactions(), block.Uncles(), receipts)
 	saveInternalTxFromSingleBlock(db.DBO, block.Number(), allInternalTxs)
-	log.Info(fmt.Sprintf("Processed block %d, timestamp %s, hash %s", block.NumberU64(), time.Unix(block.Time().Int64(), 0).UTC().String()), block.Hash().Hex())
+	log.Info(fmt.Sprintf("Processed block %d, timestamp %s, hash %s, td %s\n", block.NumberU64(), time.Unix(block.Time().Int64(), 0).UTC().String(), block.Hash().Hex(), block.DeprecatedTd().String()))
 	return receipts, allLogs, totalUsedGas, nil
 }
 
