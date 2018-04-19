@@ -10,6 +10,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/db"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
@@ -23,7 +24,7 @@ func TestSaveInternalTxFromSingleBlock(t *testing.T) {
 	value, _ := big.NewInt(0).SetString("999999999999999999999999999999999999", 10)
 	opcode := "CREATE"
 	txType := 1
-	saveInternalTxFromSingleBlock(dbo, blockNumber, []*types.InternalTx{
+	saveInternalTxFromSingleBlock(db.DBO, blockNumber, []*types.InternalTx{
 		&types.InternalTx{
 			BlockNumberNumber:      blockNumber.Uint64(),
 			TimestampSec:           timestamp.Int64(),
@@ -62,7 +63,7 @@ func TestSaveInternalTxFromSingleBlock_AllFieldsNotNull(t *testing.T) {
 	code := hexutil.MustDecode("0x02")
 	ret := hexutil.MustDecode("0x03")
 	err := errors.New("err")
-	saveInternalTxFromSingleBlock(dbo, blockNumber, []*types.InternalTx{
+	saveInternalTxFromSingleBlock(db.DBO, blockNumber, []*types.InternalTx{
 		&types.InternalTx{
 			BlockNumberNumber:      blockNumber.Uint64(),
 			TimestampSec:           timestamp.Int64(),

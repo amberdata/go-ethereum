@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
+	"github.com/ethereum/go-ethereum/core/db"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -38,15 +39,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/lib/pq"
 )
-
-var connStr = "host=" + os.Getenv("DATABASE_HOSTNAME") + " port=" + os.Getenv("DATABASE_PORT") + " dbname=" + os.Getenv("DATABASE_NAME") + " user=" + os.Getenv("DATABASE_USERNAME") + " password=" + os.Getenv("DATABASE_PASSWORD") + " sslmode=disable"
-var dbo = connectDB(connStr)
-
-func connectDB(connStr string) *sql.DB {
-	dbo, err := sql.Open("postgres", connStr)
-	common.CheckErr(err, nil)
-	return dbo
-}
 
 var fullSyncEndBlock = getFullSyncEndBlock()
 
@@ -98,6 +90,20 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	if fullSyncEndBlock > 0 && block.NumberU64() > fullSyncEndBlock {
 		panic(fmt.Sprintf("going beyond fullSyncEndBlock: block.NumberU64() = %d, fullSyncEndBlock = %d", block.NumberU64(), fullSyncEndBlock))
 	}
+	if flag.Lookup("test.v") == nil {
+		shouldWait := true
+		for shouldWait {
+			var maxBlockNumber uint64
+			err := db.DBO.QueryRow(`SELECT MAX(number) FROM block`).Scan(&maxBlockNumber)
+			common.CheckErr(err, nil)
+			if maxBlockNumber-block.NumberU64() <= 6 {
+				time.Sleep(time.Duration(db.BlockTime) * time.Second)
+			} else {
+				shouldWait = false
+			}
+		}
+	}
+
 	var (
 		receipts     types.Receipts
 		totalUsedGas = big.NewInt(0)
@@ -123,7 +129,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	}
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	p.engine.Finalize(p.bc, header, statedb, block.Transactions(), block.Uncles(), receipts)
-	saveInternalTxFromSingleBlock(dbo, block.Number(), allInternalTxs)
+	saveInternalTxFromSingleBlock(db.DBO, block.Number(), allInternalTxs)
 	log.Info(fmt.Sprintf("Processed block %d", block.NumberU64()))
 	return receipts, allLogs, totalUsedGas, nil
 }
