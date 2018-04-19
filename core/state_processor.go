@@ -278,7 +278,7 @@ func saveInternalTxFromSingleBlock(dbo *sql.DB, blockNumber *big.Int, internalTx
 	common.CheckErr(err2, nil)
 	endTimestamp := time.Now().UTC()
 	elapsed := endTimestamp.Sub(startTimestamp)
-	fmt.Printf("%s: execution took %s, saved internal tx: blockNumber = %d\n", endTimestamp.Format("2006-01-02 15:04:05"), elapsed.Round(time.Millisecond).String(), blockNumber.Uint64())
+	fmt.Printf("%s: execution took %s, saved internal tx: blockNumber = %d, timestamp = %s\n", endTimestamp.Format("2006-01-02 15:04:05"), elapsed.Round(time.Millisecond).String(), blockNumber.Uint64(), time.Unix(internalTxStore[0].TimestampSec, 0).UTC().String())
 	fmt.Printf("len(internalTxStore) = %d, totalRowsAffected = %d\n", len(internalTxStore), totalRowsAffected)
 	return uint64(totalRowsAffected)
 }
