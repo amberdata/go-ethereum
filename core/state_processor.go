@@ -94,14 +94,29 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		shouldWait := true
 		for shouldWait {
 			var maxBlockNumber uint64
-			err := db.DBO.QueryRow(`SELECT MAX(number) FROM block`).Scan(&maxBlockNumber)
-			common.CheckErr(err, nil)
+			// err := db.DBO.QueryRow(`SELECT MAX(number) FROM block`).Scan(&maxBlockNumber)
+			// common.CheckErr(err, nil)
+			var dummyBlockNumber uint64
+			var epoch1, epoch2 int64
+			blockRows, err1 := db.DBO.Query(`SELECT number, EXTRACT(EPOCH FROM timestamp)::BIGINT FROM block ORDER BY number DESC LIMIT 2`)
+			common.CheckErr(err1, nil)
+			defer blockRows.Close()
+			if blockRows.Next() {
+				err2 := blockRows.Scan(&maxBlockNumber, &epoch2)
+				common.CheckErr(err2, nil)
+			}
+			if blockRows.Next() {
+				err3 := blockRows.Scan(&dummyBlockNumber, &epoch1)
+				common.CheckErr(err3, nil)
+			}
+			blockTime := uint64(epoch2 - epoch1)
+			fmt.Printf("blockTime = %d seconds\n", blockTime)
 			fmt.Printf("maxBlockNumber = %d\n", maxBlockNumber)
 			fmt.Printf("block.NumberU64() = %d\n", block.NumberU64())
 			fmt.Printf("block.NumberU64()+6 = %d\n", block.NumberU64()+6)
 			if maxBlockNumber <= block.NumberU64()+6 {
 				fmt.Println("go to sleep")
-				time.Sleep(time.Duration(db.BlockTime) * time.Second)
+				time.Sleep(time.Duration(blockTime) * time.Second)
 			} else {
 				shouldWait = false
 			}

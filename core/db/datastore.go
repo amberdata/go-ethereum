@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
+
 	_ "github.com/lib/pq"
 )
 
@@ -20,30 +21,31 @@ func connectDB(connStr string) *sql.DB {
 	return dbo
 }
 
-var FullSyncStartBlock, BlockTime = getFullSyncStartBlock()
+var FullSyncStartBlock = getFullSyncStartBlock()
 
-func getFullSyncStartBlock() (FullSyncStartBlock uint64, BlockTime uint64) {
+func getFullSyncStartBlock() (FullSyncStartBlock uint64) {
 	fmt.Printf("flag.Lookup(\"test.v\") = %s\n", flag.Lookup("test.v")) // too strange: if this line is removed, one test will fail!
 	if flag.Lookup("test.v") != nil {
 		FullSyncStartBlock = 0
-		BlockTime = 0
+		// BlockTime = 0
 		return
 	}
-	var dummyBlockNumber uint64
-	var epoch1, epoch2 int64
-	blockRows, err1 := DBO.Query(`SELECT "blockNumber", EXTRACT(EPOCH FROM MAX(timestamp))::BIGINT FROM internal_message GROUP BY "blockNumber" ORDER BY "blockNumber" DESC LIMIT 2`)
-	defer blockRows.Close()
+	// var dummyBlockNumber uint64
+	// var epoch1, epoch2 int64
+	// blockRows, err1 := DBO.Query(`SELECT "blockNumber", EXTRACT(EPOCH FROM MAX(timestamp))::BIGINT FROM internal_message GROUP BY "blockNumber" ORDER BY "blockNumber" DESC LIMIT 2`)
+	// defer blockRows.Close()
+	err1 := DBO.QueryRow(`SELECT MAX("blockNumber") FROM internal_message`).Scan(&FullSyncStartBlock)
 	common.CheckErr(err1, nil)
-	if blockRows.Next() {
-		err2 := blockRows.Scan(&FullSyncStartBlock, &epoch2)
-		common.CheckErr(err2, nil)
-	}
-	if blockRows.Next() {
-		err3 := blockRows.Scan(&dummyBlockNumber, &epoch1)
-		common.CheckErr(err3, nil)
-	}
-	BlockTime = uint64(epoch2 - epoch1)
-	fmt.Printf("BlockTime = %d seconds\n", BlockTime)
+	// if blockRows.Next() {
+	// 	err2 := blockRows.Scan(&FullSyncStartBlock, &epoch2)
+	// 	common.CheckErr(err2, nil)
+	// }
+	// if blockRows.Next() {
+	// 	err3 := blockRows.Scan(&dummyBlockNumber, &epoch1)
+	// 	common.CheckErr(err3, nil)
+	// }
+	// BlockTime = uint64(epoch2 - epoch1)
+	// fmt.Printf("BlockTime = %d seconds\n", BlockTime)
 	FullSyncStartBlockString := os.Getenv("GETH_FULL_SYNC_START_BLOCK")
 	if len(FullSyncStartBlockString) > 0 {
 		var err error
