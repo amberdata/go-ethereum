@@ -100,7 +100,6 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 			var epoch1, epoch2 int64
 			blockRows, err1 := db.DBO.Query(`SELECT number, EXTRACT(EPOCH FROM timestamp)::BIGINT FROM block ORDER BY number DESC LIMIT 2`)
 			common.CheckErr(err1, nil)
-			defer blockRows.Close()
 			if blockRows.Next() {
 				err2 := blockRows.Scan(&maxBlockNumber, &epoch2)
 				common.CheckErr(err2, nil)
@@ -109,6 +108,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 				err3 := blockRows.Scan(&dummyBlockNumber, &epoch1)
 				common.CheckErr(err3, nil)
 			}
+			blockRows.Close()
 			blockTime := uint64(epoch2 - epoch1)
 			// fmt.Printf("blockTime = %d seconds\n", blockTime)
 			// fmt.Printf("maxBlockNumber = %d\n", maxBlockNumber)
