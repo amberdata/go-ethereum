@@ -452,13 +452,13 @@ func (evm *EVM) ChainConfig() *params.ChainConfig { return evm.chainConfig }
 // Interpreter returns the EVM interpreter
 func (evm *EVM) Interpreter() *Interpreter { return evm.interpreter }
 
-func (evm *EVM) SaveInternalTx(blockNumber *big.Int, timestamp *big.Int, thash common.Hash, src common.Address, dest common.Address, contractCodeAddr common.Address, value *big.Int, opcode string, txType int, depth int, nonce uint64, input []byte, code []byte, initialGas uint64, leftOverGas uint64, ret []byte, err error) uint64 {
+func (evm *EVM) SaveInternalTx(blockNumber *big.Int, timestamp *big.Int, thash common.Hash, src common.Address, dest common.Address, contractCodeAddr common.Address, value *big.Int, opcode string, txType int, depth int, index uint64, input []byte, code []byte, initialGas uint64, leftOverGas uint64, ret []byte, err error) uint64 {
 	if !enableSaveInternalTx {
 		return 0
 	}
-	valueString := "0"
+	valueBigInt := big.NewInt(0)
 	if value != nil {
-		valueString = value.Text(10)
+		valueBigInt = value
 	}
 	inputString := ""
 	if len(input) > 0 {
@@ -483,11 +483,11 @@ func (evm *EVM) SaveInternalTx(blockNumber *big.Int, timestamp *big.Int, thash c
 		SrcString:              strings.ToLower(src.Hex()),
 		DestString:             strings.ToLower(dest.Hex()),
 		ContractCodeAddrString: strings.ToLower(contractCodeAddr.Hex()),
-		ValueString:            valueString,
+		ValueBigInt:            valueBigInt,
 		Opcode:                 opcode,
 		TxType:                 txType,
 		Depth:                  depth,
-		Index:                  nonce,
+		Index:                  index,
 		InputString:            inputString,
 		CodeString:             codeString,
 		InitialGas:             initialGas,

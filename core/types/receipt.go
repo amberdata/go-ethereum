@@ -43,23 +43,23 @@ const (
 )
 
 type InternalTx struct {
-	BlockNumberNumber      uint64
-	TimestampSec           int64
-	ThashString            string
-	SrcString              string
-	DestString             string
-	ContractCodeAddrString string
-	ValueString            string
-	Opcode                 string
-	TxType                 int
-	Depth                  int
-	Index                  uint64
-	InputString            string
-	CodeString             string
-	InitialGas             uint64
-	LeftOverGas            uint64
-	RetString              string
-	ErrString              string
+	BlockNumberNumber      uint64   `json:"blockNumber"`
+	TimestampSec           int64    `json:"timestamp"`
+	ThashString            string   `json:"transactionHash"`
+	SrcString              string   `json:"from"`
+	DestString             string   `json:"to"`
+	ContractCodeAddrString string   `json:"contractCodeAddress"`
+	ValueBigInt            *big.Int `json:"value"`
+	Opcode                 string   `json:"opcode"`
+	TxType                 int      `json:"transactionTypeId"`
+	Depth                  int      `json:"depth"`
+	Index                  uint64   `json:"messageIndex"`
+	InputString            string   `json:"input"`
+	CodeString             string   `json:"code"`
+	InitialGas             uint64   `json:"initialGas"`
+	LeftOverGas            uint64   `json:"leftOverGas"`
+	RetString              string   `json:"returnValue"`
+	ErrString              string   `json:"error"`
 }
 
 // Receipt represents the results of a transaction.
