@@ -21,6 +21,26 @@ import (
 	_ "github.com/lib/pq"
 )
 
+var enableSaveInternalTxKafka = getEnableSaveInternalTxKafka()
+
+func getEnableSaveInternalTxKafka() bool {
+	fmt.Printf("flag.Lookup(\"test.v\") = %s\n", flag.Lookup("test.v")) // too strange: if this line is removed, one test will fail!
+	if flag.Lookup("test.v") != nil {
+		return true
+	}
+	enableSaveInternalTxKafkaString := os.Getenv("GETH_ENABLE_SAVE_INTERNAL_MESSAGE")
+	if len(enableSaveInternalTxKafkaString) > 0 {
+		enableSaveInternalTxKafka, err := strconv.ParseBool(enableSaveInternalTxKafkaString)
+		if err != nil {
+			panic(fmt.Sprintf("Cannot parse enableSaveInternalTxKafkaString: %s", enableSaveInternalTxKafkaString))
+		}
+		fmt.Printf("enableSaveInternalTxKafka = %t\n", enableSaveInternalTxKafka)
+		return enableSaveInternalTxKafka
+	} else {
+		return false
+	}
+}
+
 var connStr = "host=" + os.Getenv("DATABASE_HOSTNAME") + " port=" + os.Getenv("DATABASE_PORT") + " dbname=" + os.Getenv("DATABASE_NAME") + " user=" + os.Getenv("DATABASE_USERNAME") + " password=" + os.Getenv("DATABASE_PASSWORD") + " sslmode=disable"
 var DBO = connectDB(connStr)
 
@@ -100,6 +120,9 @@ func newInternalTxProducer(brokerList []string) sarama.SyncProducer {
 	return producer
 }
 func (kafkaDatastore *KafkaDatastore) SaveInternalTxFromSingleBlock(blockNumber *big.Int, internalTxStore []*types.InternalTx) uint64 {
+	if !enableSaveInternalTxKafka {
+		return 0
+	}
 	if len(internalTxStore) == 0 {
 		return 0
 	}

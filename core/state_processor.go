@@ -39,6 +39,26 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
+var enableSaveInternalTxSql = getEnableSaveInternalTxSql()
+
+func getEnableSaveInternalTxSql() bool {
+	fmt.Printf("flag.Lookup(\"test.v\") = %s\n", flag.Lookup("test.v")) // too strange: if this line is removed, one test will fail!
+	if flag.Lookup("test.v") != nil {
+		return true
+	}
+	enableSaveInternalTxSqlString := os.Getenv("GETH_ENABLE_SAVE_INTERNAL_MESSAGE")
+	if len(enableSaveInternalTxSqlString) > 0 {
+		enableSaveInternalTxSql, err := strconv.ParseBool(enableSaveInternalTxSqlString)
+		if err != nil {
+			panic(fmt.Sprintf("Cannot parse enableSaveInternalTxSqlString: %s", enableSaveInternalTxSqlString))
+		}
+		fmt.Printf("enableSaveInternalTxSql = %t\n", enableSaveInternalTxSql)
+		return enableSaveInternalTxSql
+	} else {
+		return false
+	}
+}
+
 var fullSyncEndBlock = getFullSyncEndBlock()
 
 func getFullSyncEndBlock() uint64 {
@@ -218,6 +238,9 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 }
 
 func saveInternalTxFromSingleBlock(dbo *sql.DB, blockNumber *big.Int, internalTxStore []*types.InternalTx) uint64 {
+	if !enableSaveInternalTxSql {
+		return 0
+	}
 	if len(internalTxStore) == 0 {
 		return 0
 	}
