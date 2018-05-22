@@ -46,7 +46,7 @@ func getEnableSaveInternalTxSql() bool {
 	if flag.Lookup("test.v") != nil {
 		return true
 	}
-	enableSaveInternalTxSqlString := os.Getenv("GETH_ENABLE_SAVE_INTERNAL_MESSAGE")
+	enableSaveInternalTxSqlString := os.Getenv("GETH_ENABLE_SAVE_INTERNAL_MESSAGE_SQL")
 	if len(enableSaveInternalTxSqlString) > 0 {
 		enableSaveInternalTxSql, err := strconv.ParseBool(enableSaveInternalTxSqlString)
 		if err != nil {
