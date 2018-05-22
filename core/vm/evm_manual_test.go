@@ -25,7 +25,7 @@ func TestSaveInternalTx_Single(t *testing.T) {
 	assert.Equal(t, 1, len(newEVM.InternalTxStore))
 	first := newEVM.InternalTxStore[0]
 	assert.Equal(t, "0x0000000000000000000000000000000000000000", first.ContractCodeAddrString)
-	assert.Equal(t, "0", first.ValueString)
+	assert.Equal(t, big.NewInt(0), first.ValueBigInt)
 	assert.Equal(t, "", first.InputString)
 	assert.Equal(t, "", first.CodeString)
 	assert.Equal(t, "", first.RetString)
