@@ -138,7 +138,6 @@ func (kafkaDatastore *KafkaDatastore) SaveInternalTxFromSingleBlock(blockNumber 
 			Topic: "internal-message",
 			Value: sarama.StringEncoder(string(internalTxMarshalled)),
 		})
-		fmt.Printf("string(internalTxMarshalled) = %s\n" + string(internalTxMarshalled))
 	}
 
 	err := kafkaDatastore.InternalTxProducer.SendMessages(msgs)
