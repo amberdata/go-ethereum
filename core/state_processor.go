@@ -46,7 +46,7 @@ func getEnableSaveInternalTxSql() bool {
 	if flag.Lookup("test.v") != nil {
 		return true
 	}
-	enableSaveInternalTxSqlString := os.Getenv("GETH_ENABLE_SAVE_INTERNAL_MESSAGE")
+	enableSaveInternalTxSqlString := os.Getenv("GETH_ENABLE_SAVE_INTERNAL_MESSAGE_SQL")
 	if len(enableSaveInternalTxSqlString) > 0 {
 		enableSaveInternalTxSql, err := strconv.ParseBool(enableSaveInternalTxSqlString)
 		if err != nil {
@@ -138,7 +138,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 			// fmt.Printf("maxBlockNumber = %d\n", maxBlockNumber)
 			// fmt.Printf("block.NumberU64() = %d\n", block.NumberU64())
 			// fmt.Printf("block.NumberU64()+6 = %d\n", block.NumberU64()+6)
-			if maxBlockNumber <= block.NumberU64()+6 {
+			if maxBlockNumber <= block.NumberU64()+1 {
 				fmt.Printf("blockTime = %d seconds, go to sleep\n", blockTime)
 				time.Sleep(time.Duration(blockTime) * time.Second)
 			} else {
@@ -306,8 +306,7 @@ func saveInternalTxFromSingleBlock(dbo *sql.DB, blockNumber *big.Int, internalTx
 		)
 		VALUES %s
 		ON CONFLICT ("transactionHash", "messageIndex")
-		DO UPDATE SET
-		"blockNumber" = EXCLUDED."blockNumber", "timestamp" = EXCLUDED."timestamp"
+		DO NOTHING
 		`,
 		strings.TrimSuffix(buffer.String(), ","))
 	// fmt.Printf("sqlStr = %s\n", sqlStr)

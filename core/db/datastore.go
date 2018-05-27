@@ -28,7 +28,7 @@ func getEnableSaveInternalTxKafka() bool {
 	if flag.Lookup("test.v") != nil {
 		return true
 	}
-	enableSaveInternalTxKafkaString := os.Getenv("GETH_ENABLE_SAVE_INTERNAL_MESSAGE")
+	enableSaveInternalTxKafkaString := os.Getenv("GETH_ENABLE_SAVE_INTERNAL_MESSAGE_KAFKA")
 	if len(enableSaveInternalTxKafkaString) > 0 {
 		enableSaveInternalTxKafka, err := strconv.ParseBool(enableSaveInternalTxKafkaString)
 		if err != nil {
