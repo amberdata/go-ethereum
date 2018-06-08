@@ -17,11 +17,7 @@
 package vm
 
 import (
-	"flag"
-	"fmt"
 	"math/big"
-	"os"
-	"strconv"
 	"strings"
 	"sync/atomic"
 
@@ -47,25 +43,25 @@ var internalTxTypeMap = map[string]int{
 	"e2e": 6,
 }
 
-var enableSaveInternalTx = getEnableSaveInternalTx()
-
-func getEnableSaveInternalTx() bool {
-	fmt.Printf("flag.Lookup(\"test.v\") = %s\n", flag.Lookup("test.v")) // too strange: if this line is removed, one test will fail!
-	if flag.Lookup("test.v") != nil {
-		return true
-	}
-	enableSaveInternalTxString := os.Getenv("GETH_ENABLE_SAVE_INTERNAL_MESSAGE")
-	if len(enableSaveInternalTxString) > 0 {
-		enableSaveInternalTx, err := strconv.ParseBool(enableSaveInternalTxString)
-		if err != nil {
-			panic(fmt.Sprintf("Cannot parse enableSaveInternalTxString: %s", enableSaveInternalTxString))
-		}
-		fmt.Printf("enableSaveInternalTx = %t\n", enableSaveInternalTx)
-		return enableSaveInternalTx
-	} else {
-		return false
-	}
-}
+// var enableSaveInternalTx = getEnableSaveInternalTx()
+//
+// func getEnableSaveInternalTx() bool {
+// 	fmt.Printf("flag.Lookup(\"test.v\") = %s\n", flag.Lookup("test.v")) // too strange: if this line is removed, one test will fail!
+// 	if flag.Lookup("test.v") != nil {
+// 		return true
+// 	}
+// 	enableSaveInternalTxString := os.Getenv("GETH_ENABLE_SAVE_INTERNAL_MESSAGE")
+// 	if len(enableSaveInternalTxString) > 0 {
+// 		enableSaveInternalTx, err := strconv.ParseBool(enableSaveInternalTxString)
+// 		if err != nil {
+// 			panic(fmt.Sprintf("Cannot parse enableSaveInternalTxString: %s", enableSaveInternalTxString))
+// 		}
+// 		fmt.Printf("enableSaveInternalTx = %t\n", enableSaveInternalTx)
+// 		return enableSaveInternalTx
+// 	} else {
+// 		return false
+// 	}
+// }
 
 type (
 	CanTransferFunc func(StateDB, common.Address, *big.Int) bool
@@ -453,7 +449,7 @@ func (evm *EVM) ChainConfig() *params.ChainConfig { return evm.chainConfig }
 func (evm *EVM) Interpreter() *Interpreter { return evm.interpreter }
 
 func (evm *EVM) SaveInternalTx(blockNumber *big.Int, timestamp *big.Int, thash common.Hash, src common.Address, dest common.Address, contractCodeAddr common.Address, value *big.Int, opcode string, txType int, depth int, index uint64, input []byte, code []byte, initialGas uint64, leftOverGas uint64, ret []byte, err error) uint64 {
-	if !enableSaveInternalTx {
+	if !common.EnableSaveInternalTx {
 		return 0
 	}
 	valueBigInt := big.NewInt(0)

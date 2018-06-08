@@ -39,26 +39,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-var enableSaveInternalTxSql = getEnableSaveInternalTxSql()
-
-func getEnableSaveInternalTxSql() bool {
-	fmt.Printf("flag.Lookup(\"test.v\") = %s\n", flag.Lookup("test.v")) // too strange: if this line is removed, one test will fail!
-	if flag.Lookup("test.v") != nil {
-		return true
-	}
-	enableSaveInternalTxSqlString := os.Getenv("GETH_ENABLE_SAVE_INTERNAL_MESSAGE_SQL")
-	if len(enableSaveInternalTxSqlString) > 0 {
-		enableSaveInternalTxSql, err := strconv.ParseBool(enableSaveInternalTxSqlString)
-		if err != nil {
-			panic(fmt.Sprintf("Cannot parse enableSaveInternalTxSqlString: %s", enableSaveInternalTxSqlString))
-		}
-		fmt.Printf("enableSaveInternalTxSql = %t\n", enableSaveInternalTxSql)
-		return enableSaveInternalTxSql
-	} else {
-		return false
-	}
-}
-
 var fullSyncEndBlock = getFullSyncEndBlock()
 
 func getFullSyncEndBlock() uint64 {
@@ -92,12 +72,15 @@ type StateProcessor struct {
 
 // NewStateProcessor initialises a new StateProcessor.
 func NewStateProcessor(config *params.ChainConfig, bc *BlockChain, engine consensus.Engine) *StateProcessor {
-	return &StateProcessor{
+	sp := &StateProcessor{
 		config: config,
 		bc:     bc,
 		engine: engine,
-		ds:     db.NewKafkaDatastore([]string{os.Getenv("KAFKA_HOSTNAME") + ":" + os.Getenv("KAFKA_PORT")}),
 	}
+	if common.EnableSaveInternalTxKafka {
+		sp.ds = db.NewKafkaDatastore([]string{os.Getenv("KAFKA_HOSTNAME") + ":" + os.Getenv("KAFKA_PORT")})
+	}
+	return sp
 }
 
 // Process processes the state changes according to the Ethereum rules by running
@@ -111,7 +94,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	if fullSyncEndBlock > 0 && block.NumberU64() > fullSyncEndBlock {
 		panic(fmt.Sprintf("going beyond fullSyncEndBlock: block.NumberU64() = %d, fullSyncEndBlock = %d", block.NumberU64(), fullSyncEndBlock))
 	}
-	if flag.Lookup("test.v") == nil {
+	if flag.Lookup("test.v") == nil && common.EnableSaveInternalTx {
 		shouldWait := true
 		for shouldWait {
 			var maxBlockNumber uint64
@@ -173,9 +156,13 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	p.engine.Finalize(p.bc, header, statedb, block.Transactions(), block.Uncles(), receipts)
 	if flag.Lookup("test.v") == nil {
-		if shouldSaveInternalTxFromSingleBlock(db.DBO, block) {
-			saveInternalTxFromSingleBlock(db.DBO, block.Number(), allInternalTxs)
-			p.ds.SaveInternalTxFromSingleBlock(block.Number(), allInternalTxs)
+		if common.EnableSaveInternalTx && shouldSaveInternalTxFromSingleBlock(db.DBO, block) {
+			if common.EnableSaveInternalTxSql {
+				saveInternalTxFromSingleBlock(db.DBO, block.Number(), allInternalTxs)
+			}
+			if common.EnableSaveInternalTxKafka {
+				p.ds.SaveInternalTxFromSingleBlock(block.Number(), allInternalTxs)
+			}
 		}
 	}
 	log.Info(fmt.Sprintf("Processed block %d, timestamp %s, hash %s, td %s", block.NumberU64(), time.Unix(block.Time().Int64(), 0).UTC().String(), block.Hash().Hex(), block.DeprecatedTd().String()))
@@ -238,7 +225,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 }
 
 func saveInternalTxFromSingleBlock(dbo *sql.DB, blockNumber *big.Int, internalTxStore []*types.InternalTx) uint64 {
-	if !enableSaveInternalTxSql {
+	if !common.EnableSaveInternalTxSql {
 		return 0
 	}
 	if len(internalTxStore) == 0 {

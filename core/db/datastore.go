@@ -17,29 +17,28 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-
 	_ "github.com/lib/pq"
 )
 
-var enableSaveInternalTxKafka = getEnableSaveInternalTxKafka()
-
-func getEnableSaveInternalTxKafka() bool {
-	fmt.Printf("flag.Lookup(\"test.v\") = %s\n", flag.Lookup("test.v")) // too strange: if this line is removed, one test will fail!
-	if flag.Lookup("test.v") != nil {
-		return true
-	}
-	enableSaveInternalTxKafkaString := os.Getenv("GETH_ENABLE_SAVE_INTERNAL_MESSAGE_KAFKA")
-	if len(enableSaveInternalTxKafkaString) > 0 {
-		enableSaveInternalTxKafka, err := strconv.ParseBool(enableSaveInternalTxKafkaString)
-		if err != nil {
-			panic(fmt.Sprintf("Cannot parse enableSaveInternalTxKafkaString: %s", enableSaveInternalTxKafkaString))
-		}
-		fmt.Printf("enableSaveInternalTxKafka = %t\n", enableSaveInternalTxKafka)
-		return enableSaveInternalTxKafka
-	} else {
-		return false
-	}
-}
+// var enableSaveInternalTxKafka = getEnableSaveInternalTxKafka()
+//
+// func getEnableSaveInternalTxKafka() bool {
+// 	fmt.Printf("flag.Lookup(\"test.v\") = %s\n", flag.Lookup("test.v")) // too strange: if this line is removed, one test will fail!
+// 	if flag.Lookup("test.v") != nil {
+// 		return true
+// 	}
+// 	enableSaveInternalTxKafkaString := os.Getenv("GETH_ENABLE_SAVE_INTERNAL_MESSAGE_KAFKA")
+// 	if len(enableSaveInternalTxKafkaString) > 0 {
+// 		enableSaveInternalTxKafka, err := strconv.ParseBool(enableSaveInternalTxKafkaString)
+// 		if err != nil {
+// 			panic(fmt.Sprintf("Cannot parse enableSaveInternalTxKafkaString: %s", enableSaveInternalTxKafkaString))
+// 		}
+// 		fmt.Printf("enableSaveInternalTxKafka = %t\n", enableSaveInternalTxKafka)
+// 		return enableSaveInternalTxKafka
+// 	} else {
+// 		return false
+// 	}
+// }
 
 var connStr = "host=" + os.Getenv("DATABASE_HOSTNAME") + " port=" + os.Getenv("DATABASE_PORT") + " dbname=" + os.Getenv("DATABASE_NAME") + " user=" + os.Getenv("DATABASE_USERNAME") + " password=" + os.Getenv("DATABASE_PASSWORD") + " sslmode=disable"
 var DBO = connectDB(connStr)
@@ -58,8 +57,11 @@ func getFullSyncStartBlock() (FullSyncStartBlock uint64) {
 		FullSyncStartBlock = 0
 		return
 	}
-	err1 := DBO.QueryRow(`SELECT MAX("blockNumber") FROM internal_message`).Scan(&FullSyncStartBlock)
-	common.CheckErr(err1, nil)
+	if common.EnableSaveInternalTx {
+		err1 := DBO.QueryRow(`SELECT MAX("blockNumber") FROM internal_message`).Scan(&FullSyncStartBlock)
+		common.CheckErr(err1, nil)
+	}
+
 	FullSyncStartBlockString := os.Getenv("GETH_FULL_SYNC_START_BLOCK")
 	if len(FullSyncStartBlockString) > 0 {
 		var err error
@@ -120,7 +122,7 @@ func newInternalTxProducer(brokerList []string) sarama.SyncProducer {
 	return producer
 }
 func (kafkaDatastore *KafkaDatastore) SaveInternalTxFromSingleBlock(blockNumber *big.Int, internalTxStore []*types.InternalTx) uint64 {
-	if !enableSaveInternalTxKafka {
+	if !common.EnableSaveInternalTxKafka {
 		return 0
 	}
 	if len(internalTxStore) == 0 {
