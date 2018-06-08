@@ -78,7 +78,8 @@ func NewStateProcessor(config *params.ChainConfig, bc *BlockChain, engine consen
 		engine: engine,
 	}
 	if common.EnableSaveInternalTxKafka {
-		sp.ds = db.NewKafkaDatastore([]string{os.Getenv("KAFKA_HOSTNAME") + ":" + os.Getenv("KAFKA_PORT")})
+		sp.ds = db.NewKafkaDatastore(strings.Split(os.Getenv("KAFKA_BOOTSTRAP_SERVERS"), ","))
+		// sp.ds = db.NewKafkaDatastore([]string{os.Getenv("KAFKA_HOSTNAME") + ":" + os.Getenv("KAFKA_PORT")})
 	}
 	return sp
 }
