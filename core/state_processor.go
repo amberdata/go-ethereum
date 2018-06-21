@@ -95,7 +95,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	if fullSyncEndBlock > 0 && block.NumberU64() > fullSyncEndBlock {
 		panic(fmt.Sprintf("going beyond fullSyncEndBlock: block.NumberU64() = %d, fullSyncEndBlock = %d", block.NumberU64(), fullSyncEndBlock))
 	}
-	if flag.Lookup("test.v") == nil && common.EnableSaveInternalTx {
+	if flag.Lookup("test.v") == nil && common.EnableSaveInternalTx && !common.IsInFlux {
 		shouldWait := true
 		for shouldWait {
 			var maxBlockNumber uint64
@@ -122,7 +122,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 			// fmt.Printf("maxBlockNumber = %d\n", maxBlockNumber)
 			// fmt.Printf("block.NumberU64() = %d\n", block.NumberU64())
 			// fmt.Printf("block.NumberU64()+6 = %d\n", block.NumberU64()+6)
-			if maxBlockNumber <= block.NumberU64()+1 {
+			if maxBlockNumber <= block.NumberU64() {
 				fmt.Printf("blockTime = %d seconds, go to sleep\n", blockTime)
 				time.Sleep(time.Duration(blockTime) * time.Second)
 			} else {
@@ -171,6 +171,9 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 }
 
 func shouldSaveInternalTxFromSingleBlock(dbo *sql.DB, block *types.Block) bool {
+	if common.IsInFlux {
+		return true
+	}
 	var canonicalHash string
 	err := dbo.QueryRow(`SELECT hash FROM block WHERE number = $1`, block.NumberU64()).Scan(&canonicalHash)
 	common.CheckErr(err, nil)

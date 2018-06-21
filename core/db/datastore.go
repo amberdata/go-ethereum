@@ -57,7 +57,7 @@ func getFullSyncStartBlock() (FullSyncStartBlock uint64) {
 		FullSyncStartBlock = 0
 		return
 	}
-	if common.EnableSaveInternalTx {
+	if common.EnableSaveInternalTx && !common.IsInFlux {
 		err1 := DBO.QueryRow(`SELECT MAX("blockNumber") FROM internal_message`).Scan(&FullSyncStartBlock)
 		common.CheckErr(err1, nil)
 	}
@@ -133,11 +133,15 @@ func (kafkaDatastore *KafkaDatastore) SaveInternalTxFromSingleBlock(blockNumber 
 	// be distributed randomly over the different partitions.
 	startTimestamp := time.Now().UTC()
 	msgs := []*sarama.ProducerMessage{}
+	topic := "internal-message"
+	if common.IsInFlux {
+		topic = "internal-message-in-flux"
+	}
 	for _, internalTx := range internalTxStore {
 		internalTxMarshalled, err := json.Marshal(internalTx)
 		common.CheckErr(err, nil)
 		msgs = append(msgs, &sarama.ProducerMessage{
-			Topic: "internal-message",
+			Topic: topic,
 			Value: sarama.StringEncoder(string(internalTxMarshalled)),
 		})
 	}

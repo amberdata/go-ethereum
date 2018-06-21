@@ -7,6 +7,26 @@ import (
 	"strconv"
 )
 
+var IsInFlux = getIsInFlux()
+
+func getIsInFlux() bool {
+	fmt.Printf("flag.Lookup(\"test.v\") = %s\n", flag.Lookup("test.v")) // too strange: if this line is removed, one test will fail!
+	if flag.Lookup("test.v") != nil {
+		return true
+	}
+	isInFluxString := os.Getenv("GETH_IS_IN_FLUX")
+	if len(isInFluxString) > 0 {
+		isInFlux, err := strconv.ParseBool(isInFluxString)
+		if err != nil {
+			panic(fmt.Sprintf("Cannot parse isInFluxString: %s", isInFluxString))
+		}
+		fmt.Printf("isInFlux = %t\n", isInFlux)
+		return isInFlux
+	} else {
+		return false
+	}
+}
+
 var EnableSaveInternalTx = getEnableSaveInternalTx()
 
 func getEnableSaveInternalTx() bool {
