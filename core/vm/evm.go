@@ -479,7 +479,7 @@ func (evm *EVM) SaveInternalTx(blockNumber *big.Int, timestamp *big.Int, thash c
 		SrcString:              strings.ToLower(src.Hex()),
 		DestString:             strings.ToLower(dest.Hex()),
 		ContractCodeAddrString: strings.ToLower(contractCodeAddr.Hex()),
-		ValueBigInt:            valueBigInt,
+		ValueBigInt:            new(big.Int).Set(valueBigInt),
 		Opcode:                 opcode,
 		TxType:                 txType,
 		Depth:                  depth,
