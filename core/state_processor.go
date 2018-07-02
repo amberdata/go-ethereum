@@ -275,8 +275,12 @@ func saveInternalTxFromSingleBlock(dbo *sql.DB, blockNumber *big.Int, internalTx
 		buffer.WriteString(internalTx.ErrString)
 		buffer.WriteString("'),")
 	}
+	table := "internal_message"
+	if common.IsInFlux {
+		table = "internal_message_in_flux"
+	}
 	sqlStr := fmt.Sprintf(`
-		INSERT INTO internal_message (
+		INSERT INTO `+table+` (
 		"blockNumber",
 		"timestamp",
 		"transactionHash",
