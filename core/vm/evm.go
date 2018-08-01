@@ -23,6 +23,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -473,6 +474,7 @@ func (evm *EVM) SaveInternalTx(blockNumber *big.Int, timestamp *big.Int, thash c
 		errString = err.Error()
 	}
 	evm.InternalTxStore = append(evm.InternalTxStore, &types.InternalTx{
+		BlockchainId:           common.BlockChainId,
 		BlockNumberNumber:      blockNumber.Uint64(),
 		TimestampSec:           timestamp.Int64(),
 		ThashString:            strings.ToLower(thash.Hex()),

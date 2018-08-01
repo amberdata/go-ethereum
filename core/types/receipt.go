@@ -43,6 +43,7 @@ const (
 )
 
 type InternalTx struct {
+	BlockchainId           string   `json:"blockchainId"`
 	BlockNumberNumber      uint64   `json:"blockNumber"`
 	TimestampSec           int64    `json:"timestamp"`
 	ThashString            string   `json:"transactionHash"`
@@ -60,6 +61,7 @@ type InternalTx struct {
 	LeftOverGas            uint64   `json:"leftOverGas"`
 	RetString              string   `json:"returnValue"`
 	ErrString              string   `json:"error"`
+	TimestampNanoSec       int64    `json:"timestampNanoseconds"`
 }
 
 // Receipt represents the results of a transaction.

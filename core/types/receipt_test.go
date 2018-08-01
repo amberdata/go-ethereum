@@ -27,6 +27,7 @@ import (
 )
 
 func TestJsonMarshaling(t *testing.T) {
+	blockchainId := "blockchainId"
 	blockNumber, _ := big.NewInt(0).SetString("4370000", 10)
 	timestamp, _ := big.NewInt(0).SetString("1508131331", 10)
 	thash := common.HexToHash("0xba87b27b862ba1a638ae0b418bde7ad4bcc8ee86d69f9c0b2d1fd69524491f2e")
@@ -38,6 +39,7 @@ func TestJsonMarshaling(t *testing.T) {
 	txType := 1
 
 	internalTx := InternalTx{
+		BlockchainId:           blockchainId,
 		BlockNumberNumber:      blockNumber.Uint64(),
 		TimestampSec:           timestamp.Int64(),
 		ThashString:            strings.ToLower(thash.Hex()),
@@ -57,5 +59,5 @@ func TestJsonMarshaling(t *testing.T) {
 		ErrString:              "",
 	}
 	internalTxMarshaled, _ := json.Marshal(internalTx)
-	assert.Equal(t, `{"blockNumber":4370000,"timestamp":1508131331,"transactionHash":"0xba87b27b862ba1a638ae0b418bde7ad4bcc8ee86d69f9c0b2d1fd69524491f2e","from":"0xd3e32594cedbc102d739142aa70d21f4caea5618","to":"0x2213d4738bfec14a2f98df5e428f48ebbde33e12","contractCodeAddress":"0x0000000000000000000000000000000000000000","value":18446744073709551616,"opcode":"CREATE","transactionTypeId":1,"depth":1,"messageIndex":1,"input":"","code":"","initialGas":0,"leftOverGas":0,"returnValue":"","error":""}`, string(internalTxMarshaled))
+	assert.Equal(t, `{"blockchainId":"blockchainId","blockNumber":4370000,"timestamp":1508131331,"transactionHash":"0xba87b27b862ba1a638ae0b418bde7ad4bcc8ee86d69f9c0b2d1fd69524491f2e","from":"0xd3e32594cedbc102d739142aa70d21f4caea5618","to":"0x2213d4738bfec14a2f98df5e428f48ebbde33e12","contractCodeAddress":"0x0000000000000000000000000000000000000000","value":18446744073709551616,"opcode":"CREATE","transactionTypeId":1,"depth":1,"messageIndex":1,"input":"","code":"","initialGas":0,"leftOverGas":0,"returnValue":"","error":"","timestampNanoseconds":0}`, string(internalTxMarshaled))
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+
 	_ "github.com/lib/pq"
 )
 
@@ -138,7 +139,10 @@ func (kafkaDatastore *KafkaDatastore) SaveInternalTxFromSingleBlock(blockNumber 
 		topic = "internal-message-in-flux"
 	}
 	for _, internalTx := range internalTxStore {
-		internalTxMarshalled, err := json.Marshal(internalTx)
+		internalTxCopy := new(types.InternalTx)
+		*internalTxCopy = *internalTx
+		internalTxCopy.TimestampSec = internalTxCopy.TimestampSec * 1000
+		internalTxMarshalled, err := json.Marshal(internalTxCopy)
 		common.CheckErr(err, nil)
 		msgs = append(msgs, &sarama.ProducerMessage{
 			Topic: topic,

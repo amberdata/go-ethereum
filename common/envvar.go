@@ -7,6 +7,7 @@ import (
 	"strconv"
 )
 
+var BlockChainId = os.Getenv("BLOCKCHAIN_ID")
 var IsInFlux = getIsInFlux()
 
 func getIsInFlux() bool {
