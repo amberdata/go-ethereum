@@ -138,6 +138,9 @@ func (kafkaDatastore *KafkaDatastore) SaveInternalTxFromSingleBlock(blockNumber 
 	if common.IsInFlux {
 		topic = "internal-message-in-flux"
 	}
+	if common.BlockChainId != "1c9c969065fcd1cf" {
+		topic += ".generic"
+	}
 	for _, internalTx := range internalTxStore {
 		internalTxCopy := new(types.InternalTx)
 		*internalTxCopy = *internalTx
