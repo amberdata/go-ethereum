@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math/big"
 	"unsafe"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -42,6 +43,28 @@ const (
 	ReceiptStatusSuccessful = uint64(1)
 )
 
+type InternalTx struct {
+	BlockchainId           string   `json:"blockchainId"`
+	BlockNumberNumber      uint64   `json:"blockNumber"`
+	TimestampSec           int64    `json:"timestamp"`
+	ThashString            string   `json:"transactionHash"`
+	SrcString              string   `json:"from"`
+	DestString             string   `json:"to"`
+	ContractCodeAddrString string   `json:"contractCodeAddress"`
+	ValueBigInt            *big.Int `json:"value"`
+	Opcode                 string   `json:"opcode"`
+	TxType                 int      `json:"transactionTypeId"`
+	Depth                  int      `json:"depth"`
+	Index                  uint64   `json:"messageIndex"`
+	InputString            string   `json:"input"`
+	CodeString             string   `json:"code"`
+	InitialGas             uint64   `json:"initialGas"`
+	LeftOverGas            uint64   `json:"leftOverGas"`
+	RetString              string   `json:"returnValue"`
+	ErrString              string   `json:"error"`
+	TimestampNanoSec       int64    `json:"timestampNanoseconds"`
+}
+
 // Receipt represents the results of a transaction.
 type Receipt struct {
 	// Consensus fields
@@ -55,6 +78,7 @@ type Receipt struct {
 	TxHash          common.Hash    `json:"transactionHash" gencodec:"required"`
 	ContractAddress common.Address `json:"contractAddress"`
 	GasUsed         uint64         `json:"gasUsed" gencodec:"required"`
+	InternalTxStore []*InternalTx  `json:"-"`
 }
 
 type receiptMarshaling struct {

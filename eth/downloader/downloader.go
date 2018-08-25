@@ -27,7 +27,11 @@ import (
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/ethereum/go-ethereum/core/rawdb"
+
+	"github.com/ethereum/go-ethereum/core/db"
+
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
@@ -449,6 +453,10 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td *big.I
 				origin = pivot - 1
 			}
 		}
+		if db.FullSyncStartBlock > 0 && pivot > db.FullSyncStartBlock-1 {
+			pivot = db.FullSyncStartBlock - 1
+		}
+		log.Info("Fast syncing until pivot block", "pivot", pivot)
 	}
 	d.committed = 1
 	if d.mode == FastSync && pivot != 0 {
@@ -1419,6 +1427,10 @@ func (d *Downloader) processFastSyncContent(latest *types.Header) error {
 				pivot = height - uint64(fsMinFullBlocks)
 			}
 		}
+		if db.FullSyncStartBlock > 0 && pivot > db.FullSyncStartBlock-1 {
+			pivot = db.FullSyncStartBlock - 1
+		}
+		log.Info("P, beforeP, afterP := splitAroundPivot(pivot, results)", "pivot", pivot)
 		P, beforeP, afterP := splitAroundPivot(pivot, results)
 		if err := d.commitFastSyncData(beforeP, stateSync); err != nil {
 			return err

@@ -18,9 +18,12 @@ package vm
 
 import (
 	"fmt"
+	"math/big"
 	"sync/atomic"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -231,6 +234,16 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte) (ret []byte, err
 			logged = true
 		}
 
+		var (
+			dest  common.Address
+			value *big.Int
+		)
+		if op == OpCode(byte(SELFDESTRUCT)) {
+			stackData := stack.Data()
+			dest = common.BigToAddress(stackData[len(stackData)-1])
+			value = in.evm.StateDB.GetBalance(contract.Address())
+		}
+
 		// execute the operation
 		res, err := operation.execute(&pc, in, contract, mem, stack)
 		// verifyPool is a build flag. Pool verification makes sure the integrity
@@ -244,6 +257,14 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte) (ret []byte, err
 			in.returnData = res
 		}
 
+		if op == OpCode(byte(SELFDESTRUCT)) {
+			if in.evm.GetDepth() == 0 {
+				panic("SELFDESTRUCT cannot have zero depth!")
+			}
+			// in.evm.CheckInvariant(contract.Address())
+			in.evm.SaveInternalTx(in.evm.BlockNumber, in.evm.Time, in.evm.StateDB.(*state.StateDB).GetThash(), contract.Address(), dest, common.Address([common.AddressLength]byte{}), value, "SELFDESTRUCT", in.evm.address2internalTxType(in.evm.GetDepth(), dest), in.evm.GetDepth(), in.evm.InternalTxIndex, nil, nil, contract.Gas+cost, contract.Gas, res, err)
+		}
+
 		switch {
 		case err != nil:
 			return nil, err
@@ -255,6 +276,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte) (ret []byte, err
 			pc++
 		}
 	}
+
 	return nil, nil
 }
 
